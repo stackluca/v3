@@ -27,6 +27,10 @@
 *.i*86
 *.x86_64
 *.hex
+v3js
 
 # Debug files
 *.dSYM/
+
+# tag files
+tags
