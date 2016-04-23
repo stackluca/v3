@@ -34,3 +34,6 @@ v3js
 
 # tag files
 tags
+
+# vim files
+*.swp
