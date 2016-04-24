@@ -5,6 +5,7 @@ typedef struct v3_options_s v3_options_t;
 typedef struct v3_vector_s  v3_vector_t;
 typedef struct v3_vector_s  *v3_vector_pt;
 typedef struct v3_pool_s    *v3_pool_t;
+typedef struct v3_dict_s    v3_dict_t;
 
 #include <stdlib.h>
 #include <stdio.h>
@@ -13,6 +14,7 @@ typedef struct v3_pool_s    *v3_pool_t;
 #include <v3_pool.h>
 #include <v3_string.h>
 #include <v3_vector.h>
+#include <v3_dict.h>
 
 typedef enum {
     V3_DATA_TYPE_BOOL,

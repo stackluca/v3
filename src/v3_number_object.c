@@ -1,30 +1,40 @@
 #include "v3_function_object.h"
 
-v3_function_object_t    Number;
-v3_function_object_t    number_toFixed;
-v3_object_t             Number_prototype;
-v3_function_object_t    parse_int;
-v3_function_object_t    to_string;
-v3_number_object_t      NaN;
+v3_function_object_t            Number;
+v3_object_t                     Number_prototype;
+static v3_number_object_t       NaN;
+static v3_number_object_t       max_value;
 
-void v3_init_Number()
+void v3_int_t 
+v3_init_Number(v3_ctx_t *ctx)
 {
-    
-    parse_int.length = 1;
-    parse_int.name = "parseInt";
+    v3_function_object_t    *parse_int;
+    v3_function_object_t    *to_string;
+    v3_function_object_t    *number_toFixed;
 
+    parse_int.length    = 1;
+    parse_int.name      = "parseInt";
+
+    v3_number_init(&max_value, 2048 /*TODO:*/);
+
+    v3_init_Number_prototype(v3_ctx_t *ctx);
     Number.name = "Number";
-    v3_object_set(v3_global, "Number", Number);
-    v3_object_set(Number, "prototype", number_prototype);
-    // v3_object_set(number, "isNaN", number_prototype);
-    v3_object_set(Number, "parseInt", parse_int);
-    // v3_object_set(number, "MAX_VALUE", parse_int);
-    // v3_object_set(number, "parseFloat", number_prototype);
-    v3_object_set(number_prototype, "constructor", number);
-    v3_object_set(number_prototype, "toString", to_string);
-    number_prototype.__proto__ = Object_prototype;
 
-    v3_object_set(number.prototype, "toFixed", v3_number_toFixed);
+    v3_object_set(ctx->global, "Number", Number);
+    v3_object_set(Number, "prototype", Number_prototype);
+    // v3_object_set(Number, "isNaN", isNaN);
+    v3_object_set(Number, "parseInt", parse_int);
+    v3_object_set(Number, "MAX_VALUE", max_value);
+
+    return V3_OK;
+}
+
+static void v3_init_Number_prototype(v3_ctx_t *ctx)
+{
+    // v3_object_set(Number_prototype, "constructor", number);
+    v3_object_set(Number_prototype, "toString", to_string);
+    v3_object_set(Number_prototype, "toFixed", v3_number_toFixed);
+    number_prototype.__proto__ = Object_prototype;
 }
 
 static v3_string_object_t v3_number_toString(v3_base_object_t *this)
