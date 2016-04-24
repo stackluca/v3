@@ -11,6 +11,7 @@ typedef enum {
 // var a=1, b=2
 typedef struct {
     v3_node_t   node;
+    v3_str_t    kind;
     v3_vector_t *declarations; 
 } v3_variable_statement_t;
 

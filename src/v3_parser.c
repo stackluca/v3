@@ -1,4 +1,5 @@
 #include <v3_core.h>
+#include <assert.h>
 #include "v3_tokenizer.h"
 
 #define c_lookahead ctx->tokenier->lookahead
@@ -11,19 +12,41 @@
         && c_lookahead->value->len == (sizeof(punctuator) - 1) \
         && strncmp(c_lookahead->value, punctuator, sizeof(punctuator) ==0))
 
+#define match_keyword(token, type) \
+                    (token->type == V3_TOKEN_Keyword \
+                    && token->v.keyword == type)
+
+static v3_str_t dec_kind_var = {3, "var"};
+
 typedef struct {
     v3_pool_t       *pool;
     v3_tokenizer_t  tokenizer;
 } v3_ctx_t;
 
-static v3_node_t *parse_program(v3_ctx_t *ctx);
-static v3_node_t*
-parse_source_elements(v3_ctx_t *ctx, v3_vector_t **body);
-static v3_int_t 
-parse_source_element(v3_ctx_t *ctx, v3_node_t **node);
-static v3_int_t 
-parse_statement(v3_ctx_t *ctx, v3_node_t **node);
+static v3_int_t consume_semicolon(v3_ctx_t *ctx);
+static v3_int_t expect_keyword(v3_ctx_t *ctx, v3_keyword_t keyword);
+static v3_bool_t match_assign(v3_ctx_t *ctx);
 
+static v3_int_t parse_array_init(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node);
+static v3_int_t parse_binary_expr(v3_ctx_t *ctx, v3_exprt_t **expr);
+static v3_int_t parse_conditional_expr(v3_ctx_t *ctx, v3_exprt_t **expr);
+static v3_int_t parse_group_expr(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_new_expr(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_object_init(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_postfix_expr(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_primary_expr(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_program(v3_ctx_t *ctx, v3_program_node_t **node);
+static v3_int_t parse_source_elements(v3_ctx_t *ctx, v3_vector_t **body);
+static v3_int_t parse_source_element(v3_ctx_t *ctx, v3_node_t **node);
+static v3_int_t parse_statement(v3_ctx_t *ctx, v3_node_t **node);
+static v3_int_t parse_unary_expr(v3_ctx_t *ctx, v3_expr_t **expr);
+static v3_int_t parse_variable_declarations(v3_ctx_t *ctx, v3_vector_t **list);
+static v3_int_t parse_variable_declaration(v3_ctx_t *ctx, v3_variable_declarator_t **node);
+static v3_int_t parse_variable_identifier(v3_ctx_t *ctx, v3_idetifier_t **node);
+
+static v3_literal_t v3_create_literal(v3_ctx_t *ctx, v3_token_t *token);
+static v3_number_object_t * v3_number_from_token(v3_ctx_t *ctx, v3_token_t *token);
 // v3_object_t v3_global;
 
 static void v3_ctx_init(v3_ctx_t *ctx)
@@ -75,7 +98,7 @@ v3_parse(const char *code, size_t len, v3_program_node_t **program)
 }
 
 static v3_int_t 
-*parse_program(v3_ctx_t *ctx, v3_program_node_t **node)
+parse_program(v3_ctx_t *ctx, v3_program_node_t **node)
 {
     v3_program_node_t   *node;
     v3_vector_t         *body;
@@ -95,7 +118,7 @@ static v3_int_t
     return V3_OK;
 }
 
-static v3_node_t*
+static v3_int_t
 parse_source_elements(v3_ctx_t *ctx, v3_vector_t **body)
 {
     v3_node_t       *source_element, **item;
@@ -125,11 +148,11 @@ parse_source_element(v3_ctx_t *ctx, v3_node_t **node)
         // TODO: let
         // TODO: const
         // TODO: function
-        return parse_statement(ctx);
+        return parse_statement(ctx, node);
     }
 
     if (c_lookahead->type != V3_TOKEN_EOF) {
-        return parse_statement(ctx);
+        return parse_statement(ctx, node);
     }
 }
 
@@ -149,8 +172,6 @@ parse_statement(v3_ctx_t *ctx, v3_node_t **node)
         // TODO:return parse_block(ctx, node);
         return V3_NOT_SUPPORT;
     }
-
-    node = v3_node_create(ctx);
 
     if (type == V3_TOKEN_Punctuator) {
         // if (strncm
@@ -188,22 +209,48 @@ parse_variable_statement(v3_ctx_t *ctx, v3_node_t **node)
     v3_vector_t     *declarations;
     expect_keyword(ctx, V3_KEYWORD_VAR);
 
-    declarations = parse_variable_declarations(ctx);
+    node = v3_palloc(ctx->pool, sizeof(v3_variable_statement_t));
+    if (node == NULL) return V3_ERROR;
+    node->node.type = V3_SYNTAX_VARIABLE_DECLARATION;
+
+    rc = parse_variable_declarations(ctx, declarations);
+    if (rc != V3_OK) return rc;
+    node->declarations = declarations;
+    node->kind = dec_kind_var;
     
     if (!consume_semicolon(ctx)) {
         // TODO:
-        return NULL;
+        return V3_OK;
     }
+
+    return V3_OK;
 }
 
 static v3_int_t 
 parse_variable_declarations(v3_ctx_t *ctx, v3_vector_t **list)
 {
+    v3_int_t        rc;
+    v3_node_t        *node, **item;
+
     *list = v3_vector_new(ctx->options, sizeof(void *), 1);
     if (*list == NULL) return V3_OUT_OF_MEMORY;
 
     do {
-         
+        rc = parse_variable_declaration(ctx, &node);
+        if (rc != V3_OK) return rc;
+
+        item = v3_vector_push(ctx->options, list);
+        if (item == NULL) return rc;
+        *item = node;
+
+        if (!match(",")) {
+            break;
+        }
+
+        if (lex(ctx->tokenier, NULL) == V3_ERROR) {
+            return V3_ERROR;
+        }
+
     } while (ctx->tokenier->index < ctx->tokenier->data.length)
     
     return V3_OK;
@@ -213,7 +260,7 @@ static v3_int_t
 parse_variable_declaration(v3_ctx_t *ctx, v3_variable_declarator_t **node)
 {
     v3_int_t    rc;
-    v3_node_t   *init = NULL;
+    v3_node_t   *init = NULL; // var a, may be null;
     v3_idetifier_t  *id;
 
     node = v3_palloc(ctx->pool, sizeof(v3_variable_declarator_t));
@@ -222,9 +269,10 @@ parse_variable_declaration(v3_ctx_t *ctx, v3_variable_declarator_t **node)
     rc = parse_variable_identifier(ctx, &id);
     if (rc != V3_OK) { return rc; }
 
-    if (match("=")) {
+    // TODO:
+    if (match("=")) { // lookahead is =
         // eg: var a=1;
-        rc = lex(ctx->tokenier);
+        rc = lex(ctx->tokenier, NULL); // so ignore it 
         if (rc != V3_OK) { return rc; }
         
         rc = parse_assignment_expr(ctx, &init);
@@ -234,7 +282,7 @@ parse_variable_declaration(v3_ctx_t *ctx, v3_variable_declarator_t **node)
     node->type = V3_SYNTAX_VARIABLE_DECLARATOR;
     node->id = id;
     node->init = init;
-    return 
+    return V3_OK;
 }
 
 static v3_int_t 
@@ -261,6 +309,8 @@ parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node)
         if (rc != V3_OK) return rc;
 
     }
+
+    return V3_NOT_SUPPORT;
 }
 
 static v3_int_t 
@@ -270,6 +320,8 @@ parse_conditional_expr(v3_ctx_t *ctx, v3_exprt_t **expr)
 
     rc = parse_binary_expr(ctx, expr);
     if (rc != V3_OK) return rc;
+
+    return V3_NOT_SUPPORT;
 }
 
 static v3_int_t 
@@ -302,10 +354,6 @@ parse_unary_expr(v3_ctx_t *ctx, v3_expr_t **expr)
     // TODO:
     return V3_NOT_SUPPORT;
 }
-
-#define match_keyword(token, type) \
-                    (token->type == V3_TOKEN_Keyword \
-                    && token->v.keyword == type)
 
 static v3_int_t 
 parse_postfix_expr(v3_ctx_t *ctx, v3_expr_t **expr)
@@ -420,6 +468,7 @@ static v3_number_object_t *
 v3_number_from_token(v3_ctx_t *ctx, v3_token_t *token)
 {
     v3_number_object_t *num;
+    assert(token->type == V3_TOKEN_NullLiteral);
     num = v3_palloc(ctx->pool, sizeof(*num));
     if (num == NULL) return NULL;
 
@@ -504,7 +553,7 @@ parse_variable_identifier(v3_ctx_t *ctx, v3_idetifier_t **node)
 }
 
 static v3_int_t 
-consume_semicolon(ctx)
+consume_semicolon(v3_ctx_t *ctx)
 {
     // TODO:
     return V3_OK;
