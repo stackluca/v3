@@ -4,6 +4,14 @@
 #include <v3_core.h>
 
 typedef enum {
+    V3_KEYWORD_BREAK,
+    V3_KEYWORD_CONTINUE,
+    V3_KEYWORD_DEBUGGER,
+    V3_KEYWORD_VAR,
+    V3_KEYWORD_NEW,
+} v3_keyword_t;
+
+typedef enum {
     V3_TOKEN_BooleanLiteral = 1,
     V3_TOKEN_EOF,
     V3_TOKEN_Identifier,
@@ -13,15 +21,20 @@ typedef enum {
     V3_TOKEN_Punctuator,
     V3_TOKEN_StringLiteral,
     V3_TOKEN_RegularExpression
-} CesTokenType;
+} v3_tokentype_t;
 
 typedef struct {
-    CesTokenType type;
+    v3_tokentype_t type;
     v3_str_t    *value;
     unsigned int lineNumber;
     unsigned int lineStart;
     unsigned int start;
     unsigned int end;
+    union v {
+        v3_str_t        *text;
+        v3_keyword_t    keyword;
+        double          num;
+    };
 } v3_token_t;
 
 typedef struct {
@@ -32,10 +45,10 @@ typedef struct {
     v3_token_t      *lookahead;
     v3_options_t    *options;
     v3_vector_pt    tokens;
-    const char            *err;
+    const char      *err;
     int             openParenToken;
     int             openCurlyToken;
-    int             tokenize:1;
+    unsigned        tokenize:1;
 } v3_tokenizer_t;
 
 typedef struct {

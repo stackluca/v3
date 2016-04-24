@@ -74,7 +74,7 @@ static const char *Msg_UnexpectedToken_ILLEGAL = "Unexpected token ILLEGAL";
 ////  static const char *Msg_NewlineAfterThrow = "Illegal newline after throw";
 // static const char *InvalidRegExp = "Invalid regular expression";
 static const char *Msg_UnterminatedRegExp = "Invalid regular expression: missing /";
-// static const char *Msg_InvalidLHSInAssignment = "Invalid left-hand side in assignment";
+const char *Msg_InvalidLHSInAssignment = "Invalid left-hand side in assignment";
 // static const char *Msg_InvalidLHSInForIn = "Invalid left-hand side in for-in";
 // static const char *Msg_MultipleDefaultsInSwitch = "More than one default clause in switch statement";
 // static const char *Msg_NoCatchOrFinally = "Missing catch or finally after try";
@@ -181,10 +181,13 @@ v3_output_t *v3_tokenize(v3_options_t *options, const char* code, int length)
     return output;
 }
 
-int lex(v3_tokenizer_t *tokenizer) 
+int lex(v3_tokenizer_t *tokenizer, v3_token_t **atoken) 
 {
     v3_token_t token;
     token = *tokenizer->lookahead;
+    if (atoken != NULL) {
+        *atoken = tokenizer->lookahead;
+    }
     tokenizer->index = token.end;
     tokenizer->lineNumber = token.lineNumber;
     tokenizer->lineStart = token.lineStart;
