@@ -1,7 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
-#include "v3_tokenizer.h"
-#include "v3_foundation.h"
+#include <v3_core.h>
 
 void* v3_alloc(v3_options_t *options, size_t size)
 {

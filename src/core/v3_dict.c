@@ -1,7 +1,9 @@
 #include <v3_core.h>
 #include <v3_dict.h>
 
-void v3_dict_t *
+static v3_int_t hash(v3_str_t *key);
+
+v3_dict_t *
 v3_dict_create(v3_pool_t *pool, size_t capacity)
 {
     v3_dict_t   *dict;
@@ -29,11 +31,11 @@ v3_int_t v3_dict_set(v3_dict_t *dict, v3_str_t *key, void *value)
 
     index = hash_code % dict->capacity;
 
-    bucket = dict->buckets[index];
+    bucket = &dict->buckets[index];
 
     for (slot = bucket->head; slot != NULL; slot = slot->next) {
-        if (slot->key->len == key->len
-            && strncmp(slot->key.data, key->data, key->len) == 0) {
+        if (slot->key.length == key->length
+            && strncmp(slot->key.data, key->data, key->length) == 0) {
             // exists;
             slot->value = value;
             return V3_OK;
@@ -43,7 +45,7 @@ v3_int_t v3_dict_set(v3_dict_t *dict, v3_str_t *key, void *value)
     slot = v3_palloc(dict->pool, sizeof(v3_dict_slot_t));
     if (slot == NULL) return V3_ERROR;
 
-    slot->key = key;
+    slot->key = *key;
     slot->value = value;
     
     if (bucket->head == NULL) {
@@ -67,11 +69,11 @@ extern void *v3_dict_get(v3_dict_t *dict, v3_str_t *key)
 
     hash_code = hash(key);
     index = hash_code % dict->capacity;
-    bucket = dict->buckets[index];
+    bucket = &dict->buckets[index];
 
     for (slot = bucket->head; slot != NULL; slot = slot->next) {
-        if (slot->key->len == key->len
-            && strncmp(slot->key.data, key->data, key->len) == 0) {
+        if (slot->key.length == key->length
+            && strncmp(slot->key.data, key->data, key->length) == 0) {
             return slot->value;
         }
     }
@@ -81,9 +83,9 @@ extern void *v3_dict_get(v3_dict_t *dict, v3_str_t *key)
 
 static v3_int_t hash(v3_str_t *key)
 {
-    ngx_int_t   hash_code = 0, i;
+    v3_int_t   hash_code = 0, i;
      
-    for (i = 0; i < key->len; i++) {
+    for (i = 0; i < key->length; i++) {
         hash_code += key->data[i] ^ 31;
     }
 

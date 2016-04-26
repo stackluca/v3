@@ -1,36 +1,45 @@
 #include <v3_core.h>
-#include <v3_object.h>
-#include <v3_number_object.h>
-#include <v3_parser.h>
+#include "v3_parser.h"
 
 // static v3_object_t v3_global;
 
-v3_int_t v3_init(v3_ctx_t *ctx)
+v3_int_t v3_init_global(v3_ctx_t *ctx)
 {
     // init global;
     v3_object_t     *global;
-    global = v3_palloc(ctx->pool, sizeof(v3_object_t));
-    if (globals == NULL) return V3_ERROR;
+    v3_int_t        rc;
 
-    rc = v3_object_init(global, 1000);
+    global = v3_palloc(ctx->pool, sizeof(v3_object_t));
+    if (global == NULL) return V3_ERROR;
+
+    rc = v3_object_init(ctx, global, 1000);
     if (rc != V3_OK) return rc;
 
     ctx->global = global;
 
-    v3_object_init(v3_global);
-
     // builtin
     v3_init_Object(ctx);
     v3_init_Number(ctx);
+
+    return V3_OK;
 }
 
 v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
 {
-    v3_program_node_t *program;
+    v3_int_t            rc;
+    v3_program_node_t   *program;
+    size_t              len;
 
-    rc = v3_parse(ctx, &program);
+    len = strlen(code);
+    rc = v3_parse(ctx, code, len, &program);
     if (rc != V3_OK) {
-        return rc;
+        if (ctx->err != NULL) {
+            printf("%s", ctx->err);
+            ctx->err = NULL;
+        } else {
+            printf("Unkown error %d", rc);
+        }
+        printf(" \n");
     }
 
     return V3_OK;

@@ -3,13 +3,6 @@
 
 #include <v3_core.h>
 
-typedef enum {
-    V3_KEYWORD_BREAK,
-    V3_KEYWORD_CONTINUE,
-    V3_KEYWORD_DEBUGGER,
-    V3_KEYWORD_VAR,
-    V3_KEYWORD_NEW,
-} v3_keyword_t;
 
 typedef enum {
     V3_TOKEN_BooleanLiteral = 1,
@@ -24,20 +17,20 @@ typedef enum {
 } v3_tokentype_t;
 
 typedef struct {
-    v3_tokentype_t type;
-    v3_str_t    *value;
-    unsigned int lineNumber;
-    unsigned int lineStart;
-    unsigned int start;
-    unsigned int end;
-    union v {
+    v3_tokentype_t  type;
+    v3_str_t        value;
+    unsigned int    lineNumber;
+    unsigned int    lineStart;
+    unsigned int    start;
+    unsigned int    end;
+    union decoded_value {
         v3_str_t        *text;
-        v3_keyword_t    keyword;
+        int             keyword;
         double          num;
-    };
+    } v;
 } v3_token_t;
 
-typedef struct {
+struct v3_tokenizer_s {
     v3_str_t        source;
     unsigned int    index;
     unsigned int    lineNumber;
@@ -49,7 +42,7 @@ typedef struct {
     int             openParenToken;
     int             openCurlyToken;
     unsigned        tokenize:1;
-} v3_tokenizer_t;
+};
 
 typedef struct {
     v3_vector_pt    tokens;   
@@ -66,7 +59,7 @@ extern v3_options_t cesDefaultOptions;
 
 extern v3_output_t *v3_tokenize(v3_options_t *options, const char* code, int length);
 extern void peek(v3_tokenizer_t *tokenizer);
-extern int lex(v3_tokenizer_t *tokenizer);
+extern int lex(v3_tokenizer_t *tokenizer, v3_token_t **atoken);
 extern int skipComment(v3_tokenizer_t *tokenizer);
 extern v3_int_t v3_tokenizer_init(v3_tokenizer_t *tokenizer, v3_options_t *options, const char* code, int length);
 #endif // _v3_prima_h_

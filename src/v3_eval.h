@@ -10,7 +10,7 @@ struct v3_frame_s {
     v3_frame_t      *prev;
 };
 
-extern void v3_init(v3_ctx_t *ctx);
+extern void v3_init_global(v3_ctx_t *ctx);
 extern v3_int_t v3_eval(v3_ctx_t *ctx, char *code);
 
 #endif

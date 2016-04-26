@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <v3_core.h>
 #include "v3_tokenizer.h"
-#include "v3_foundation.h"
 
 #define CURRENT_CHAR tokenizer->source.data[tokenizer->index]
 #define NEXT_CHAR tokenizer->source.data[tokenizer->index + 1]
@@ -29,7 +28,7 @@ static v3_token_t *scanPunctuator(v3_tokenizer_t *tokenizer);
 static v3_token_t *scanIdentifier(v3_tokenizer_t *tokenizer);
 static v3_token_t *scanNumericLiteral(v3_tokenizer_t *tokenizer);
 static v3_token_t *scanHexLiteral(v3_tokenizer_t *tokenizer, unsigned int start);
-static v3_token_t *v3_token_create(v3_tokenizer_t *tokenizer, int start, CesTokenType type);
+static v3_token_t *v3_token_create(v3_tokenizer_t *tokenizer, int start, v3_tokentype_t type);
 static v3_token_t *scanStringLiteral(v3_tokenizer_t *tokenizer);
 static v3_token_t *advanceSlash(v3_tokenizer_t *tokenizer);
 static v3_token_t *collectRegex(v3_tokenizer_t *tokenizer);
@@ -52,17 +51,32 @@ static char* TokenName[] = {
 };
 #endif
 
-#define v3_string(str) { str, sizeof(str) - 1 }
 
-static v3_str_t FnExprTokens[] = {v3_string("("), v3_string("["), v3_string("in"), v3_string("typeof"), v3_string("instanceof"), v3_string("new"),
-                    v3_string("return"), v3_string("case"), v3_string("delete"), v3_string("throw"), v3_string("void"),
+static v3_str_t FnExprTokens[] = {
+                    v3_string("("), v3_string("["), 
+                    v3_string("in"), 
+                    v3_string("typeof"), v3_string("instanceof"), 
+                    v3_string("new"),
+                    v3_string("return"), v3_string("case"), v3_string("delete"), 
+                    v3_string("throw"), v3_string("void"),
                     // assignment operators
-                    v3_string("="), v3_string("+="), v3_string("-="), v3_string("*="), v3_string("/="), v3_string("%="), v3_string("<<="), v3_string(">>="), v3_string(">>>="),
-                    v3_string("&="), v3_string("|="), v3_string("^="), v3_string(","),
+                    v3_string("="), v3_string("+="), v3_string("-="), v3_string("*="), 
+                    v3_string("/="), v3_string("%="), 
+                    v3_string("<<="), v3_string(">>="), v3_string(">>>="),
+                    v3_string("&="), v3_string("|="), v3_string("^="), 
+                    v3_string(","),
                     // binary/unary operators
-                    v3_string("+"), v3_string("-"), v3_string("*"), v3_string("/"), v3_string("%"), v3_string("++"), v3_string("--"), v3_string("<<"), v3_string(">>"), v3_string(">>>"), v3_string("&"),
-                    v3_string("|"), v3_string("^"), v3_string("!"), v3_string("~"), v3_string("&&"), v3_string("||"), v3_string("?"), v3_string(":"), v3_string("==="), v3_string("=="), v3_string(">="),
-                    v3_string("<="), v3_string("<"), v3_string(">"), v3_string("!="), v3_string("!==")};
+                    v3_string("+"), v3_string("-"), v3_string("*"), v3_string("/"), v3_string("%"), 
+                    v3_string("++"), v3_string("--"), 
+                    v3_string("<<"), v3_string(">>"), v3_string(">>>"), 
+                    v3_string("&"), v3_string("|"), v3_string("^"), v3_string("!"), v3_string("~"), 
+                    v3_string("&&"), v3_string("||"), 
+                    v3_string("?"), v3_string(":"), 
+                    v3_string("==="), v3_string("=="), 
+                    v3_string(">="), v3_string("<="), 
+                    v3_string("<"), v3_string(">"), 
+                    v3_string("!="), v3_string("!==")
+            };
 
 // static const char *Msg_UnexpectedToken = "Unexpected token %0";
 static const char *Msg_UnexpectedToken_ILLEGAL = "Unexpected token ILLEGAL";
@@ -166,13 +180,13 @@ v3_output_t *v3_tokenize(v3_options_t *options, const char* code, int length)
         return output;
     }
     
-    rc = lex(tokenizer);
+    rc = lex(tokenizer, NULL);
     if (rc == V3_ERROR) {
         return output;
     }
 
     while (tokenizer->lookahead->type != V3_TOKEN_EOF) {
-        rc = lex(tokenizer);
+        rc = lex(tokenizer, NULL);
         if (rc == V3_ERROR) {
             return output;
         }
@@ -237,7 +251,8 @@ static int collectToken(v3_tokenizer_t *tokenizer)
 }
 #endif
 
-static int isKeyword(v3_str_t *id) {
+static int isKeyword(v3_str_t *id, int *keyword) 
+{
 /*
 // TODO:
     if (strict && isStrictModeReservedWord(id)) {
@@ -250,48 +265,48 @@ static int isKeyword(v3_str_t *id) {
 
     switch (id->length) {
     case 2:
-        return (!strncmp(id->data, "if", 2)) 
-            || (!strncmp(id->data, "in", 2))
-            || (!strncmp(id->data, "do", 2));
+        return (!strncmp(id->data, "if", 2) && (*keyword = V3_KEYWORD_IF)) 
+            || (!strncmp(id->data, "in", 2) && (*keyword = V3_KEYWORD_IN))
+            || (!strncmp(id->data, "do", 2) && (*keyword = V3_KEYWORD_DO));
     case 3:
-        return (!strncmp(id->data, "var", 3))
-            || (!strncmp(id->data, "for", 3))
-            || (!strncmp(id->data, "new", 3))
-            || (!strncmp(id->data, "try", 3))
-            || (!strncmp(id->data, "let", 3));
+        return (!strncmp(id->data, "var", 3)&& (*keyword = V3_KEYWORD_VAR))
+            || (!strncmp(id->data, "for", 3)&& (*keyword = V3_KEYWORD_FOR))
+            || (!strncmp(id->data, "new", 3)&& (*keyword = V3_KEYWORD_NEW))
+            || (!strncmp(id->data, "try", 3)&& (*keyword = V3_KEYWORD_TRY))
+            || (!strncmp(id->data, "let", 3)&& (*keyword = V3_KEYWORD_LET));
     case 4:
-        return (!strncmp(id->data, "this", 4))
-            || (!strncmp(id->data, "else", 4))
-            || (!strncmp(id->data, "case", 4))
-            || (!strncmp(id->data, "void", 4))
-            || (!strncmp(id->data, "with", 4))
-            || (!strncmp(id->data, "enum", 4));
+        return (!strncmp(id->data, "this", 4)&& (*keyword = V3_KEYWORD_THIS))
+            || (!strncmp(id->data, "else", 4)&& (*keyword = V3_KEYWORD_ELSE))
+            || (!strncmp(id->data, "case", 4)&& (*keyword = V3_KEYWORD_CASE))
+            || (!strncmp(id->data, "void", 4)&& (*keyword = V3_KEYWORD_VOID))
+            || (!strncmp(id->data, "with", 4)&& (*keyword = V3_KEYWORD_WITH))
+            || (!strncmp(id->data, "enum", 4)&& (*keyword = V3_KEYWORD_ENUM));
     case 5:
-        return (!strncmp(id->data, "while", 5))
-            || (!strncmp(id->data, "break", 5))
-            || (!strncmp(id->data, "catch", 5))
-            || (!strncmp(id->data, "throw", 5))
-            || (!strncmp(id->data, "const", 5))
-            || (!strncmp(id->data, "yield", 5))
-            || (!strncmp(id->data, "class", 5))
-            || (!strncmp(id->data, "super", 5));
+        return (!strncmp(id->data, "while", 5)&& (*keyword = V3_KEYWORD_WHILE))
+            || (!strncmp(id->data, "break", 5)&& (*keyword = V3_KEYWORD_BREAK))
+            || (!strncmp(id->data, "catch", 5)&& (*keyword = V3_KEYWORD_CATCH))
+            || (!strncmp(id->data, "throw", 5)&& (*keyword = V3_KEYWORD_THROW))
+            || (!strncmp(id->data, "const", 5)&& (*keyword = V3_KEYWORD_CONST))
+            || (!strncmp(id->data, "yield", 5)&& (*keyword = V3_KEYWORD_YIELD))
+            || (!strncmp(id->data, "class", 5)&& (*keyword = V3_KEYWORD_CLASS))
+            || (!strncmp(id->data, "super", 5)&& (*keyword = V3_KEYWORD_SUPER));
     case 6:
-        return (!strncmp(id->data, "return", 6))
-            || (!strncmp(id->data, "typeof", 6))
-            || (!strncmp(id->data, "delete", 6))
-            || (!strncmp(id->data, "switch", 6))
-            || (!strncmp(id->data, "export", 6))
-            || (!strncmp(id->data, "import", 6));
+        return (!strncmp(id->data, "return", 6)&& (*keyword = V3_KEYWORD_RETURN))
+            || (!strncmp(id->data, "typeof", 6)&& (*keyword = V3_KEYWORD_TYPEOF))
+            || (!strncmp(id->data, "delete", 6)&& (*keyword = V3_KEYWORD_DELETE))
+            || (!strncmp(id->data, "switch", 6)&& (*keyword = V3_KEYWORD_SWITCH))
+            || (!strncmp(id->data, "export", 6)&& (*keyword = V3_KEYWORD_EXPORT))
+            || (!strncmp(id->data, "import", 6)&& (*keyword = V3_KEYWORD_IMPORT));
     case 7:
-        return (!strncmp(id->data, "default", 7))
-            || (!strncmp(id->data, "finally", 7))
-            || (!strncmp(id->data, "extends", 7));
+        return (!strncmp(id->data, "default", 7)&& (*keyword = V3_KEYWORD_DEFAULT))
+            || (!strncmp(id->data, "finally", 7)&& (*keyword = V3_KEYWORD_FINALLY))
+            || (!strncmp(id->data, "extends", 7)&& (*keyword = V3_KEYWORD_EXTENDS));
     case 8:
-        return (!strncmp(id->data, "function", 8))
-            || (!strncmp(id->data, "continue", 8))
-            || (!strncmp(id->data, "debugger", 8));
+        return (!strncmp(id->data, "function", 8)&& (*keyword = V3_KEYWORD_FUNCTION))
+            || (!strncmp(id->data, "continue", 8)&& (*keyword = V3_KEYWORD_CONTINUE))
+            || (!strncmp(id->data, "debugger", 8)&& (*keyword = V3_KEYWORD_DEBUGGER));
     case 10:
-        return (!strncmp(id->data, "instanceof", 10));
+        return (!strncmp(id->data, "instanceof", 10)&& (*keyword = V3_KEYWORD_INTANCEOF));
     default:
         return 0;
     }
@@ -470,14 +485,17 @@ static int isImplicitOctalLiteral(v3_tokenizer_t *tokenizer) {
 static v3_token_t *
 scanNumericLiteral(v3_tokenizer_t *tokenizer) 
 {
-    unsigned int start;
-    char    ch, *num;
+    unsigned int    start, num_index;
+    char            ch, *num, number[20];
+    v3_token_t      *token;
+
     ch = CURRENT_CHAR;
     assert(isDecimalDigit(ch) || (ch == '.'));
-
+    num_index = 0;
     start = tokenizer->index;
     if (ch != '.') {
-        num = (char *)tokenizer->source.data + tokenizer->index;
+        number[num_index++] = CURRENT_CHAR;
+        // num = (char *)tokenizer->source.data + tokenizer->index;
         tokenizer->index++;
         ch = CURRENT_CHAR;
 
@@ -485,7 +503,7 @@ scanNumericLiteral(v3_tokenizer_t *tokenizer)
         // Octal number starts with '0'.
         // Octal number in ES6 starts with '0o'.
         // Binary number in ES6 starts with '0b'.
-        if (*num == '0') {
+        if (number[0] == '0') {
             if (ch == 'x' || ch == 'X') {
                 tokenizer->index++;
                 return scanHexLiteral(tokenizer, start);
@@ -518,8 +536,8 @@ scanNumericLiteral(v3_tokenizer_t *tokenizer)
 
         while (isDecimalDigit(CURRENT_CHAR)) {
             // number->length++;
+            number[num_index++] = CURRENT_CHAR;
             tokenizer->index++;
-            //number += source[index++];
         }
         ch = CURRENT_CHAR;
     }
@@ -527,6 +545,7 @@ scanNumericLiteral(v3_tokenizer_t *tokenizer)
     if (ch == '.') {
         tokenizer->index++;
         while (isDecimalDigit(CURRENT_CHAR)) {
+            number[num_index++] = CURRENT_CHAR;
             tokenizer->index++;
         }
         ch = CURRENT_CHAR;
@@ -539,7 +558,9 @@ scanNumericLiteral(v3_tokenizer_t *tokenizer)
             tokenizer->index++;
         }
         if (isDecimalDigit(CURRENT_CHAR)) {
+            number[num_index++] = CURRENT_CHAR;
             while (isDecimalDigit(CURRENT_CHAR)) {
+                number[num_index++] = CURRENT_CHAR;
                 tokenizer->index++;
             }
         } else {
@@ -552,11 +573,13 @@ scanNumericLiteral(v3_tokenizer_t *tokenizer)
         tokenizer->err = Msg_UnexpectedToken_ILLEGAL;
         return NULL;
     }
-
-    return v3_token_create(tokenizer, start, V3_TOKEN_NumericLiteral);
+    number[num_index] = '\0';
+    token = v3_token_create(tokenizer, start, V3_TOKEN_NumericLiteral);
+    token->v.num = strtod(number, NULL);
+    return token;
 } 
 
-static v3_token_t *v3_token_create(v3_tokenizer_t *tokenizer, int start, CesTokenType type)
+static v3_token_t *v3_token_create(v3_tokenizer_t *tokenizer, int start, v3_tokentype_t type)
 {
     v3_token_t     *token;
 //    v3_str_t       *value; 
@@ -574,6 +597,9 @@ static v3_token_t *v3_token_create(v3_tokenizer_t *tokenizer, int start, CesToke
     token->start      = start;
     token->end        = tokenizer->index;  
     token->type       = type;
+    token->value.data = tokenizer->source.data + start;
+    token->value.length = token->end - token->start;
+
     return token;
 }
 
@@ -772,8 +798,10 @@ scanIdentifier(v3_tokenizer_t *tokenizer)
 {
     unsigned int    start;
     // int             rc;
-    CesTokenType    type;
+    v3_tokentype_t    type;
     v3_str_t       *id; 
+    int             keyword;
+    v3_token_t      *token;
 
     start = tokenizer->index;
     // \u代表一个unicode字符
@@ -782,7 +810,7 @@ scanIdentifier(v3_tokenizer_t *tokenizer)
 
     if (id->length == 1) {
         type = V3_TOKEN_Identifier;
-    } else if (isKeyword(id)) {
+    } else if (isKeyword(id, &keyword)) {
         type = V3_TOKEN_Keyword;
     } else if (!strncmp(id->data, "null", 4)) {
         type = V3_TOKEN_NullLiteral;
@@ -792,7 +820,14 @@ scanIdentifier(v3_tokenizer_t *tokenizer)
         type = V3_TOKEN_Identifier;
     }
 
-    return v3_token_create(tokenizer, start, type);
+
+    token = v3_token_create(tokenizer, start, type);
+
+    if (type == V3_TOKEN_Keyword) {
+        token->v.keyword = keyword;    
+    }
+
+    return token;
 }
 
 static v3_str_t *
@@ -823,7 +858,7 @@ getIdentifier(v3_tokenizer_t *tokenizer)
         }
     }
     
-    id = v3_alloc(tokenizer->options, sizeof(*id));
+    id = v3_alloc(tokenizer->options, sizeof(v3_str_t));
     if (id == NULL) return NULL;
     id->data = tokenizer->source.data + start;
     id->length = tokenizer->index - start;
