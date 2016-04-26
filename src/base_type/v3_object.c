@@ -1,25 +1,6 @@
 #include <v3_core.h>
 #include <v3_object.h>
 
-v3_object_t     Object_prototype;
-
-void v3_init_Object(v3_ctx_t *ctx)
-{
-#if 0
-    v3_function_object_t    object;
-    // v3_function_object_t    toString;
-
-    v3_object_set(ctx->global, "Object", object);
-    v3_object_set(object, "prototype", Object_prototype);
-
-    Object_prototype.__proto__ = NULL;
-
-
-    // v3_object_set(Object_prototype, "toString", toString);
-#endif
-    
-}
-
 v3_int_t 
 v3_object_init(v3_ctx_t *ctx, v3_object_t *obj, size_t capacity)
 {
@@ -32,12 +13,19 @@ v3_object_init(v3_ctx_t *ctx, v3_object_t *obj, size_t capacity)
     return V3_OK;
 }
 
-
-static v3_base_object_t 
-*v3_object_new(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+v3_object_t *v3_object_create(v3_ctx_t *ctx, size_t capacity)
 {
-    // TODO:
-    return NULL;    
+    v3_object_object_t  *aobj;
+
+    aobject = v3_palloc(ctx->pool, sizeof(*aobj));
+    if (aobject == NULL) return NULL;
+
+    rc = v3_object_init(ctx, capacity);
+    if (rc != V3_OK) {
+        return NULL;
+    }
+
+    return obj;
 }
 
 v3_int_t 

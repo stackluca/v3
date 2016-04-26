@@ -9,6 +9,7 @@ extern v3_object_t  Object_prototype;
 struct v3_object_s {
     v3_base_object_t    base; 
     v3_dict_t           *__attrs__;
+    v3_base_object_t    *wrappered_value;
 };
 
 v3_int_t v3_object_init(v3_ctx_t *ctx, v3_object_t *obj, size_t capacity);

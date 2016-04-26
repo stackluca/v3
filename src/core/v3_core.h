@@ -40,6 +40,8 @@ typedef enum {
     V3_SYNTAX_PROGRAM,
     V3_SYNTAX_IDENTIFIER,
     V3_SYNTAX_LITERAL,
+    V3_SYNTAX_ASSIGNMENT_EXPR,
+    V3_SYNTAX_SEQUENCE_EXPR,
 } v3_syntax_t;
 
 typedef enum {

@@ -21,4 +21,6 @@ static inline void v3_number_init(v3_ctx_t *ctx, v3_number_object_t *num)
     num->value = 0;
 }
 
+#define v3_numobj(num) v3_number_create(ctx, num)
+
 #endif
