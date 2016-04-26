@@ -4,14 +4,12 @@
 
 struct v3_string_object_s {
     v3_base_object_t    base;
-    size_t              len;
-    char*               data;
+    v3_str_t            value;
 };
 
-static inline void v3_string_object_init(v3_string_object_t *str)
+static inline void v3_string_init(v3_ctx_t *ctx, v3_string_object_t *str)
 {
+    memset(str, 0, sizeof(*str));
     str->base.type = V3_DATA_TYPE_STRING; 
-    str->len = 0;
-    str->data = NULL;
 }
 #endif

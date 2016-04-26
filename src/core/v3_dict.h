@@ -19,6 +19,9 @@ struct v3_dict_s{
     v3_dict_bucket_t    *buckets;
     size_t              capacity;
     v3_pool_t           *pool;
+#ifdef V3_DEBUG
+    v3_int_t            count;
+#endif
 };
 
 extern v3_dict_t *v3_dict_create(v3_pool_t *pool, size_t capacity);

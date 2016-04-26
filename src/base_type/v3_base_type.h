@@ -19,6 +19,7 @@ typedef struct v3_object_s v3_object_t;
 
 struct v3_base_object_s {
     v3_data_type            type;
+    v3_int_t                ref_count;
     v3_object_t             *__proto__;
 };
 

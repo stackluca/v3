@@ -15,5 +15,5 @@ v3_int_t v3_object_init(v3_ctx_t *ctx, v3_object_t *obj, size_t capacity);
 
 extern void v3_init_Object(v3_ctx_t *ctx);
 // key could be number_object (used in array) and string_object
-void v3_objec_set(v3_ctx_t *ctx, v3_object_t* obj, v3_str_t *key, v3_base_object_t *value);
+void v3_object_set(v3_ctx_t *ctx, v3_object_t* obj, v3_str_t *key, v3_base_object_t *value);
 #endif

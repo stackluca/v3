@@ -1,5 +1,7 @@
-#ifndef _V3_FOUNDATION_H
-#define _V3_FOUNDATION_H 1
+#ifndef _V3_CORE_H
+#define _V3_CORE_H 1
+
+#define V3_DEBUG
 
 typedef struct v3_options_s v3_options_t;
 typedef struct v3_vector_s  v3_vector_t;
@@ -123,5 +125,5 @@ struct v3_ctx_s {
 
 #define V3_FALSE 0
 #define V3_TRUE  1
-#endif // _V3_FOUNDATION_H 
+#endif // _V3_CORE_H 
 

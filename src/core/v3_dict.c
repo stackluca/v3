@@ -57,6 +57,9 @@ v3_int_t v3_dict_set(v3_dict_t *dict, v3_str_t *key, void *value)
     }
     bucket->len++;
 
+#ifdef V3_DEBUG
+    dict->count++;
+#endif
     return V3_OK;
 }
 

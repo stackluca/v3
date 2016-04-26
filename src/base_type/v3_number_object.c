@@ -1,24 +1,32 @@
 #include <v3_core.h>
 #include "v3_number_object.h"
+#include <math.h>
+
+static v3_int_t v3_init_Number_prototype(v3_ctx_t *ctx)
 
 v3_function_object_t            Number;
 v3_object_t                     Number_prototype;
 // static v3_number_object_t       NaN;
 // static v3_number_object_t       max_value;
+#define V3_NUMBER_POOL_MAX      100
+static v3_number_object_t       v3_number_pool[V3_NUMBER_POOL_MAX];
 
 v3_int_t v3_init_Number(v3_ctx_t *ctx)
 {
-
-#if 0
+    size_t                  i;
     v3_function_object_t    *parse_int;
-    v3_function_object_t    *to_string;
     v3_function_object_t    *number_toFixed;
 
     // parse_int.length    = 1;
     // parse_int.name      = "parseInt";
-    v3_number_init(&max_value, 2048 /*TODO:*/);
-
+    // v3_number_init(&max_value, 2048 /*TODO:*/);
+    for (i = 0; i < V3_NUMBER_POOL_MAX; i++) {
+        v3_number_init(ctx, &v3_nubmer_pool[i]);
+        v3_number_pool[i].value = i;
+    }
+    
     v3_init_Number_prototype(v3_ctx_t *ctx);
+    #if 0
     Number.name = v3_string("Number");
 
     v3_object_set(ctx->global, "Number", Number);
@@ -26,22 +34,25 @@ v3_int_t v3_init_Number(v3_ctx_t *ctx)
     // v3_object_set(Number, "isNaN", isNaN);
     v3_object_set(Number, "parseInt", parse_int);
     v3_object_set(Number, "MAX_VALUE", max_value);
+    #endif
 
 #endif
     return V3_OK;
 }
 
-static void v3_init_Number_prototype(v3_ctx_t *ctx)
+static v3_int_t v3_init_Number_prototype(v3_ctx_t *ctx)
 {
-    // v3_object_set(Number_prototype, "constructor", number);
-    //v3_object_set(Number_prototype, "toString", to_string);
+    v3_function_object_t            *to_string;
+
+    to_string = v3_function_object_create(ctx, "toString", 2, toString);
+    if (to_string == NULL) {
+        return V3_ERROR;
+    }
+    
+    v3_object_set(ctx, Number_prototype, "constructor", Number);
+    v3_object_set(ctx, Number_prototype, "toString", to_string);
     //v3_object_set(Number_prototype, "toFixed", v3_number_toFixed);
     //number_prototype.__proto__ = Object_prototype;
-}
-
-static v3_string_object_t *v3_number_toString(v3_base_object_t *this)
-{
-    return NULL;
 }
 
 
@@ -50,9 +61,9 @@ static v3_base_object_t *toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_argu
     // v3_number_object_t  *num;
     // v3_string_object_t  *str;
 
-#if 0
-    if (this == NULL) return v3_type_error(v3_err_cant_convert_undefined_to_obj);
-    if (this->type != V3_TYPE_NUMBER) return v3_type_error(v3_err_incompatible_object);
+    // TODO:
+    if (this == NULL) return v3_type_error(ctx, v3_err_cant_convert_undefined_to_obj);
+    if (this->type != V3_TYPE_NUMBER) return v3_type_error(ctx, v3_err_incompatible_object);
 
     // TODO: args[0] is 
     nm = this;
@@ -63,8 +74,6 @@ static v3_base_object_t *toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_argu
     str->len = 4;
     str->data = "9527";// TODO:snprintf();
     return num;
-#endif
-    return NULL;
 }
 
 static v3_base_object_t *parseInt(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
@@ -83,4 +92,21 @@ static v3_base_object_t *parseInt(v3_ctx_t *ctx, v3_base_object_t *this, v3_argu
     num->value = 9527;
     return num;
     #endif
+}
+
+v3_number_object_t *v3_number_create(v3_ctx_t *ctx, double num)
+{
+    v3_number_object_t  *anum;
+
+    if (num < V3_NUMBER_POOL_MAX
+        && round(num) == num) {
+        return v3_number_pool[(int)num];
+    }
+
+    anumber = v3_palloc(ctx->pool, sizeof(*anum));
+    if (anumber == NULL) return NULL;
+
+    v3_number_init(ctx, anum);
+    anumber->value = num;
+    return num;
 }

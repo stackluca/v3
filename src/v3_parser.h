@@ -2,6 +2,7 @@
 #define _V3_PARSER_H 
 
 
+extern v3_str_t dec_kind_var;
 // var a=1, b=2
 typedef struct {
     v3_node_t   node;

@@ -1,5 +1,4 @@
 #include <v3_core.h>
-#include <v3_base_type.h>
 #include <assert.h>
 #include "v3_tokenizer.h"
 #include "v3_parser.h"
@@ -18,7 +17,7 @@
                     (token->type == V3_TOKEN_Keyword \
                     && token->v.keyword == keyword_type)
 
-static v3_str_t dec_kind_var = {"var", 3};
+v3_str_t dec_kind_var = {"var", 3};
 
 
 static v3_int_t consume_semicolon(v3_ctx_t *ctx);
@@ -294,7 +293,7 @@ parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node)
 
     // oldParenthesisCount = ctx->parenthesis_count;
     token = c_lookahead;
-    rc = parse_conditional_expr(ctx, &expr);
+    rc = parse_conditional_expr(ctx, node);
     return rc;
     // TODO:
     if (rc != V3_OK) return rc;
@@ -332,16 +331,18 @@ parse_binary_expr(v3_ctx_t *ctx, v3_node_t **expr)
 {
     // v3_token_t  *marker;
     v3_int_t    rc;
-    v3_node_t   *left;
+    // v3_node_t   *left;
 
     // marker = c_lookahead;
     
-    rc = parse_unary_expr(ctx, &left); 
+    rc = parse_unary_expr(ctx, expr); 
     if (rc != V3_OK) return rc;
 
+#if 0
     if (left == NULL) {
         
     }
+#endif
 
     return V3_OK;
 }
@@ -486,14 +487,7 @@ static v3_idetifier_t *v3_create_identifier(v3_ctx_t *ctx, v3_str_t *name)
 static v3_number_object_t *
 v3_number_from_token(v3_ctx_t *ctx, v3_token_t *token)
 {
-    v3_number_object_t *num;
-    assert(token->type == V3_TOKEN_NumericLiteral);
-    num = v3_palloc(ctx->pool, sizeof(*num));
-    if (num == NULL) return NULL;
-
-    v3_number_init(ctx, num);
-    num->value = token->v.num;
-    return num;
+    return v3_number_create(ctx, token->v.num);
 }
 
 static v3_literal_t*

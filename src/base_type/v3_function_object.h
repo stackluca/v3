@@ -24,7 +24,6 @@ struct v3_function_object_s {
     v3_func_pt          *native_func;
 };
 
-
 extern v3_function_object_t *
 v3_create_native_func(v3_ctx_t *ctx, char *name, size_t arg_count, v3_func_pt *pt);
 #endif
