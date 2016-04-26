@@ -3,6 +3,11 @@
 #include "v3_tokenizer.h"
 #include "v3_parser.h"
 
+typedef struct {
+    v3_vector_t     *params;
+    v3_vector_t     *defaults;
+} v3_params_t;
+
 static v3_node_t v3_arrow_parameter_place_holder;
 #define c_lookahead ctx->tokenizer.lookahead
 #define is_left_hand_side(node) (node->type == V3_SYNTAX_IDENTIFIER \
@@ -20,23 +25,28 @@ static v3_node_t v3_arrow_parameter_place_holder;
 
 #define is_identifier_name(token) \
     (token->type == V3_TOKEN_Identifier \
-    || token->type == V3_TOKEN_Keyword \ 
-    || token->type == V3_TOKEN_BooleanLiteral \ 
+    || token->type == V3_TOKEN_Keyword \
+    || token->type == V3_TOKEN_BooleanLiteral \
     || token->type == V3_TOKEN_NullLiteral)
 
 v3_str_t dec_kind_var = {"var", 3};
 
 
 static v3_int_t consume_semicolon(v3_ctx_t *ctx);
+static v3_int_t expect(v3_ctx_t *ctx, char *punctuator, size_t len);
 static v3_int_t expect_keyword(v3_ctx_t *ctx, v3_keyword_t keyword);
 static v3_bool_t match_assign(v3_ctx_t *ctx);
 
+static v3_int_t parse_arguments(v3_ctx_t *ctx, v3_vector_t **args);
 static v3_int_t parse_array_init(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node);
 static v3_int_t parse_binary_expr(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_conditional_expr(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_group_expr(v3_ctx_t *ctx, v3_node_t **expr);
+static v3_int_t parse_left_hand_side_expr_allow_call(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_new_expr(v3_ctx_t *ctx, v3_node_t **expr);
+static v3_int_t parse_non_computed_member(v3_ctx_t *ctx, v3_node_t **node);
+static v3_int_t parse_non_computed_property(v3_ctx_t *ctx, v3_node_t **node);
 static v3_int_t parse_object_init(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_postfix_expr(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_primary_expr(v3_ctx_t *ctx, v3_node_t **expr);
@@ -49,11 +59,16 @@ static v3_int_t parse_variable_declaration(v3_ctx_t *ctx, v3_variable_declarator
 static v3_int_t parse_variable_identifier(v3_ctx_t *ctx, v3_idetifier_t **node);
 static v3_int_t parse_variable_statement(v3_ctx_t *ctx, v3_node_t **node);
 
-static v3_literal_t *v3_create_literal(v3_ctx_t *ctx, v3_token_t *token);
-static v3_member_expr *
-v3_create_member_expr(v3_ctx_t *ctx, char accessor, v3_node_t *expr, v3_node_t *property);
+static v3_call_expr_t *v3_create_call_expr(v3_ctx_t *ctx, v3_node_t *callee, v3_vector_t *args);
 static v3_idetifier_t *v3_create_identifier(v3_ctx_t *ctx, v3_str_t *name);
+static v3_literal_t *v3_create_literal(v3_ctx_t *ctx, v3_token_t *token);
+static v3_member_expr_t *v3_create_member_expr(v3_ctx_t *ctx, char accessor, v3_node_t *expr, v3_node_t *property);
+
 static v3_number_object_t * v3_number_from_token(v3_ctx_t *ctx, v3_token_t *token);
+static v3_int_t 
+v3_reinterpret_as_cover_formals_list(v3_ctx_t *ctx, v3_vector_t *exprs, v3_params_t **params);
+static v3_bool_t peek_line_terminator(v3_ctx_t *ctx);
+
 
 static v3_int_t throw_error(v3_ctx_t *ctx, const char *msg, int rc);
 static v3_int_t throw_unexpected(v3_ctx_t *ctx, v3_token_t *token);
@@ -196,7 +211,7 @@ parse_statement(v3_ctx_t *ctx, v3_node_t **node)
         }
     }
 
-        parse_expression(ctx, node);
+    // parse_expression(ctx, node);
 
     return V3_NOT_SUPPORT;
     // TODO:
@@ -297,12 +312,13 @@ parse_variable_declaration(v3_ctx_t *ctx, v3_variable_declarator_t **node)
 static v3_int_t 
 parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node)
 {
-    // int oldParenthesisCount;
+    int oldParenthesisCount;
     v3_node_t   *expr;
     v3_int_t    rc;
     v3_token_t  *token;
+    // v3_vector_t *params;
 
-    oldParenthesisCount = ctx->parenthesis_count;
+    oldParenthesisCount = ctx->state.parenthesis_count;
     token = c_lookahead;
     rc = parse_conditional_expr(ctx, node);
 
@@ -316,18 +332,30 @@ parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node)
         if (ctx->state.parenthesis_count == oldParenthesisCount
             || ctx->state.parenthesis_count + 1) {
             if (expr->type == V3_SYNTAX_IDENTIFIER) {
+                // eg: foo(a);
                 // TODO:
                 return V3_NOT_SUPPORT;
             } else if(expr->type == V3_SYNTAX_ASSIGNMENT_EXPR) {
-                // TODO:
+                // eg: 
+                // TODO: 
                 return V3_NOT_SUPPORT;
             } else if(expr->type == V3_SYNTAX_SEQUENCE_EXPR) {
+                // eg: foo(a, b, 2);
                 // TODO:
                 return V3_NOT_SUPPORT;
             } else if (expr == &v3_arrow_parameter_place_holder) {
-                
+                // eg: foo();
+                // TODO:
+                //rc = v3_reinterpret_as_cover_formals_list(ctx, NULL, params);
+                //if (rc != V3_OK) return V3_ERROR;
             }
 
+#if 0
+            if (params != NULL) {
+                rc =  
+                return rc;
+            }
+#endif
         }
     }
 
@@ -344,6 +372,19 @@ parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node)
 
     }
 
+    return V3_NOT_SUPPORT;
+}
+
+static v3_int_t 
+v3_reinterpret_as_cover_formals_list(v3_ctx_t *ctx, v3_vector_t *exprs, v3_params_t **params)
+{
+#if 0
+    // TODO:
+    *params = v3_palloc(ctx->pool, sizeof(v3_params_t));
+    if (*params == NULL) return V3_ERROR;
+    memset(*params, 0, sizeof(v3_params_t));
+    return V3_OK;
+#endif
     return V3_NOT_SUPPORT;
 }
 
@@ -414,8 +455,8 @@ parse_postfix_expr(v3_ctx_t *ctx, v3_node_t **expr)
         if ((match("++") || match("--"))
             && !peek_line_terminator(ctx)) {
             
-            if (!is_left_hand_side(expr)) {
-                return throw_error(ctx, Msg_InvalidLHSInAssignment);
+            if (!is_left_hand_side((*expr))) {
+                return throw_error(ctx, Msg_InvalidLHSInAssignment, V3_UNEXPEDTED_TOKEN);
             }
 
             rc = lex(&ctx->tokenizer, &token);
@@ -431,7 +472,7 @@ parse_postfix_expr(v3_ctx_t *ctx, v3_node_t **expr)
 }
 
 // Return true if there is a line terminator before the next token.
-v3_bool_t peek_line_terminator(v3_ctx_t *ctx)
+static v3_bool_t peek_line_terminator(v3_ctx_t *ctx)
 {
     v3_int_t    pos, line, start, found;
 
@@ -440,7 +481,7 @@ v3_bool_t peek_line_terminator(v3_ctx_t *ctx)
     start = ctx->tokenizer.lineStart;
 
     skipComment(&ctx->tokenizer);
-    found = ctx->tokenizer.lineNumber !== line;
+    found = ctx->tokenizer.lineNumber != line;
 
     ctx->tokenizer.index = pos;
     ctx->tokenizer.lineNumber = line;
@@ -453,9 +494,10 @@ static v3_int_t
 parse_left_hand_side_expr_allow_call(v3_ctx_t *ctx, v3_node_t **expr)
 {
     v3_bool_t   prev_allow_in;
-    v3_token_t  *start_token;
+    // v3_token_t  *start_token;
     v3_int_t    rc;
     v3_node_t   *property;
+    v3_vector_t  *args;
 
     prev_allow_in = ctx->state.allowin;
     ctx->state.allowin = V3_TRUE;
@@ -467,19 +509,73 @@ parse_left_hand_side_expr_allow_call(v3_ctx_t *ctx, v3_node_t **expr)
 
     for (;;) {
         if (match(".")) {
+            // eg: a.foo
             rc = parse_non_computed_member(ctx, &property);
             if (rc != V3_OK) return rc;
             
-            *expr = v3_create_member_expr(ctx, '.', *expr, property);
+            *expr = (v3_node_t *)v3_create_member_expr(ctx, '.', *expr, property);
             if (*expr == NULL) return V3_ERROR;
-        } // TODO:
+        } else if(match("(")) {
+            // eg: a.foo(), a()
+            rc = parse_arguments(ctx, &args); 
+            if (rc != V3_OK) return rc;
+            *expr = (v3_node_t *)v3_create_call_expr(ctx, *expr, args);
+            if (*expr == NULL) return V3_ERROR;
+        }
     }
     // start_token = c_lookahead;
     // TODO:
     return V3_OK;
 }
 
-static v3_member_expr *
+static v3_int_t 
+parse_arguments(v3_ctx_t *ctx, v3_vector_t **args)
+{
+    v3_int_t    rc;
+    v3_node_t   **item, *arg;
+
+    *args = v3_vector_new(ctx->options, sizeof(void *), 4);
+    if (*args == NULL) return V3_ERROR;
+
+    rc = expect(ctx, "(", 1);
+    if (rc != V3_OK) return rc;
+
+    if (!(match(")"))) {
+        while (ctx->tokenizer.index < ctx->tokenizer.source.length) {
+            rc = parse_assignment_expr(ctx, &arg);
+            if (rc != V3_OK) return rc;
+
+            item = v3_vector_push(ctx->options, *args);
+            if (item == NULL) return V3_ERROR;
+
+            *item = arg;
+            if (match(")")) {
+                break;
+            }
+
+            rc = expect(ctx, ",", 1);
+            if (rc != V3_OK) return rc;
+        }
+    }
+
+    return expect(ctx, ")", 1);
+}
+
+static v3_call_expr_t *
+v3_create_call_expr(v3_ctx_t *ctx, v3_node_t *callee, v3_vector_t *args)
+{
+    v3_call_expr_t    *expr;  
+
+    expr = v3_palloc(ctx->pool, sizeof(*expr));
+    if (expr == NULL) return NULL;
+    expr->node.type = V3_SYNTAX_CALL_EXPR;
+    expr->callee = callee;
+    expr->arguments = args;
+
+    return expr;
+}
+
+static v3_member_expr_t*
 v3_create_member_expr(v3_ctx_t *ctx, char accessor, v3_node_t *expr, v3_node_t *property)
 {
     v3_member_expr_t    *mem_expr;  
@@ -518,7 +614,7 @@ parse_non_computed_property(v3_ctx_t *ctx, v3_node_t **node)
         return throw_unexpected(ctx, token);
     }
 
-    *node = v3_create_identifier(ctx, &token.value);
+    *node = (v3_node_t *)v3_create_identifier(ctx, &token->value);
     if (*node == NULL) return V3_ERROR;
     return V3_OK;
 }
@@ -535,7 +631,7 @@ expect(v3_ctx_t *ctx, char *punctuator, size_t len)
     if (rc != V3_OK) return rc;
     
     if (token->type != V3_TOKEN_Punctuator
-        || (token->value.len != len 
+        || (token->value.length != len 
             || strncmp(token->value.data, punctuator, len) != 0)) {
         return throw_unexpected(ctx, token);
     }
@@ -579,7 +675,7 @@ parse_group_expr(v3_ctx_t *ctx, v3_node_t **expr)
     if (rc != V3_OK) return rc;
 
     if (match(")")) {
-        rc = lex(ctx, NULL);
+        rc = lex(&ctx->tokenizer, NULL);
         if (rc != V3_OK) return rc;
         *expr = &v3_arrow_parameter_place_holder;
         return V3_OK;
@@ -587,8 +683,9 @@ parse_group_expr(v3_ctx_t *ctx, v3_node_t **expr)
 
     ctx->state.parenthesis_count++;
 
-    rc = parse_expression(ctx, expr);
-    if (rc != V3_OK) return rc;
+    // TODO:
+    //rc = parse_expression(ctx, expr);
+    ////if (rc != V3_OK) return rc;
 
     return expect(ctx, ")", 1); 
 }

@@ -17,7 +17,7 @@ static inline void v3_number_init(v3_ctx_t *ctx, v3_number_object_t *num)
 {
     num->base.type = V3_DATA_TYPE_NUMBER;
     num->base.__proto__ = &Number_prototype; //v3_object_get("prototype", ctx->globals);
-    num->ref_count = 0;
+    num->base.ref_count = 0;
     num->value = 0;
 }
 

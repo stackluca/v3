@@ -19,7 +19,7 @@ struct v3_function_object_s {
     v3_base_object_t    base; 
     v3_dict_t           *__attrs__;
     v3_string_object_t  *name;  
-    v3_number_object    *length;    // args count
+    v3_number_object_t    *length;    // args count
     unsigned int        is_native;
     v3_func_pt          *native_func;
     // v3_function_block_t function;

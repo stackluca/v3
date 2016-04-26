@@ -34,14 +34,15 @@ void v3_pdealloc_wrapper(void *userdata, void *value);
 #include "../v3_tokenizer.h"
 
 typedef enum {
-    V3_SYNTAX_VARIABLE_DECLARATION,
-    V3_SYNTAX_VARIABLE_DECLARATOR,
-    V3_SYNTAX_MEMBER_EXPR,
-    V3_SYNTAX_PROGRAM,
+    V3_SYNTAX_ASSIGNMENT_EXPR,
+    V3_SYNTAX_CALL_EXPR,
     V3_SYNTAX_IDENTIFIER,
     V3_SYNTAX_LITERAL,
-    V3_SYNTAX_ASSIGNMENT_EXPR,
+    V3_SYNTAX_MEMBER_EXPR,
+    V3_SYNTAX_PROGRAM,
     V3_SYNTAX_SEQUENCE_EXPR,
+    V3_SYNTAX_VARIABLE_DECLARATION,
+    V3_SYNTAX_VARIABLE_DECLARATOR,
 } v3_syntax_t;
 
 typedef enum {
@@ -107,6 +108,11 @@ struct v3_options_s {
     void            *userdata; 
 };
 
+typedef struct {
+    size_t              parenthesis_count;
+    unsigned int        allowin:1;
+} v3_tokenizer_state_t;
+
 struct v3_ctx_s {
     v3_pool_t           *pool; 
     v3_tokenizer_t      tokenizer;
@@ -114,6 +120,7 @@ struct v3_ctx_s {
     v3_object_t         *global;
     const char          *err;
     v3_error_object_t   *err_obj;
+    v3_tokenizer_state_t    state;
 };
 
 #define V3_OK 0

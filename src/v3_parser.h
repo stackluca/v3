@@ -34,7 +34,14 @@ typedef struct {
     int         computed; /* when acceor == [ */
     char        accessor; /* [ or . */
     v3_node_t   *property;
+    v3_node_t   *object;
 } v3_member_expr_t;
+
+typedef struct {
+    v3_node_t   node;
+    v3_node_t   *callee;
+    v3_vector_t *arguments;
+} v3_call_expr_t;
 
 v3_int_t 
 v3_parse(v3_ctx_t *ctx, const char *code, size_t len, v3_program_node_t **program);
