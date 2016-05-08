@@ -1,5 +1,6 @@
 #include <v3_core.h>
 #include <math.h>
+#include <assert.h>
 
 static v3_int_t v3_init_Number_prototype(v3_ctx_t *ctx);
 static v3_base_object_t *parseInt(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
@@ -80,17 +81,26 @@ static v3_int_t v3_init_Number_prototype(v3_ctx_t *ctx)
 
 static v3_base_object_t *toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
 {
-    // v3_number_object_t  *num;
+    v3_number_object_t  *num;
     //v3_string_object_t  *str;
+    char                *buf;
+    size_t              len;
 
-    // TODO:
     // if (this == NULL) return v3_type_error(ctx, v3_err_cant_convert_undefined_to_obj);
     // if (this->type != V3_TYPE_NUMBER) return v3_type_error(ctx, v3_err_incompatible_object);
+    
+    assert(this->type == V3_DATA_TYPE_NUMBER);
+    num = (v3_number_object_t *)this;
+    buf = v3_palloc(ctx->pool, 20);
+    len = snprintf(buf, 20, "%f", num->value);
+    buf[len] = '\0';
+    
+    // TODO:
 
     // TODO: args[0] is 
     // num = (v3_number_object_t *)this;
 
-    return (v3_base_object_t *)v3_strobj("9527");
+    return (v3_base_object_t *)v3_string_create(ctx, buf, len);
 }
 
 static v3_base_object_t *parseInt(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)

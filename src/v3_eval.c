@@ -15,6 +15,10 @@ static v3_base_object_t *
 v3_identifier_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node);
 static v3_base_object_t *
 v3_find_property(v3_base_object_t *owner, v3_string_object_t *key);
+static v3_base_object_t *
+v3_expr_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node);
+static v3_base_object_t *
+v3_new_expr_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node);
 
 extern v3_int_t v3_init_Function(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Object(v3_ctx_t *ctx);
@@ -30,8 +34,10 @@ v3_eval_pt v3_evaleators[] = {
     NULL,//V3_SYNTAX_MEMBER_EXPR,
     v3_program_eval,//V3_SYNTAX_PROGRAM,
     NULL,//V3_SYNTAX_SEQUENCE_EXPR,
-    v3_variable_statement_eval,//V3_SYNTAX_VARIABLE_DECLARATION,
-    v3_variable_declarator_eval,//V3_SYNTAX_VARIABLE_DECLARATOR,
+    v3_variable_statement_eval, // V3_SYNTAX_VARIABLE_DECLARATION,
+    v3_variable_declarator_eval,// V3_SYNTAX_VARIABLE_DECLARATOR,
+    v3_expr_statement_eval,     // V3_SYNTAX_EXPR_STATEMENT = 9,   // 
+    v3_new_expr_eval,     // V3_SYNTAX_NEW_EXPR = 10,   // 
 };
 
 
@@ -128,6 +134,39 @@ v3_program_eval(v3_ctx_t *ctx, v3_frame_t *aframe, v3_node_t *anode)
 }
 
 static v3_base_object_t *
+v3_new_expr_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+{
+    v3_new_expr_t           *expr;
+    v3_function_object_t    *constructor;
+    v3_base_object_t        *ret;
+    v3_object_t             *this;
+    assert(node->type == V3_SYNTAX_NEW_EXPR);
+
+    expr = (v3_new_expr_t *)node;
+    assert(expr->callee != NULL);
+    ret  = v3_evaleators[expr->callee->type](ctx, frame, expr->callee);
+    if (ret == NULL || constructor->base.base.type != V3_DATA_TYPE_FUNCTION) {
+        // TODO: return undefined;
+        // TODO: throw SyntaxError
+        return NULL;
+    }
+
+    this = v3_object_create(ctx, 5);
+    if (this == NULL) return NULL;
+
+    constructor = (v3_function_object_t *) ret;
+
+    if (constructor->is_native) {
+        constructor->native_func(ctx, (v3_base_object_t *)this, NULL/*TODO: argument */);
+    } else {
+        // TODO:
+        return NULL;
+    }
+    
+    return this;
+}
+
+static v3_base_object_t *
 v3_variable_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
 {
     v3_variable_statement_t     *statement;
@@ -194,6 +233,15 @@ v3_identifier_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
 }
 
 static v3_base_object_t *
+v3_expr_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+{
+    v3_expr_statement_t     *expr;
+    expr = (v3_expr_statement_t *)node;
+
+    return v3_evaleators[expr->expr->type](ctx, frame, node);
+}
+
+static v3_base_object_t *
 v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
 {
     v3_object_t         *prototype, *object;
@@ -212,8 +260,8 @@ v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
         }
 
         return v3_find_property((v3_base_object_t *)object->base.__proto__, key);
-        ret = v3_object_get(object->base.__proto__, key);
-        return ret;
+        // ret = v3_object_get(object->base.__proto__, key);
+        // return ret;
     } else {
         ret = v3_find_property((v3_base_object_t *)owner->__proto__, key);
         return ret;

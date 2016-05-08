@@ -44,6 +44,7 @@ typedef enum {
     V3_SYNTAX_VARIABLE_DECLARATION = 7, // var a=a, b=2
     V3_SYNTAX_VARIABLE_DECLARATOR = 8,  // a=1
     V3_SYNTAX_EXPR_STATEMENT = 9,   // 
+    V3_SYNTAX_NEW_EXPR = 10,
 } v3_syntax_t;
 
 typedef enum {

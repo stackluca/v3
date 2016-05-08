@@ -48,6 +48,12 @@ typedef struct {
     v3_node_t   *expr;
 } v3_expr_statement_t;
 
+typedef struct {
+    v3_node_t       node;
+    v3_node_t       *callee;
+    v3_vector_t     *args;
+} v3_new_expr_t;
+
 v3_int_t 
 v3_parse(v3_ctx_t *ctx, const char *code, size_t len, v3_program_node_t **program);
 #endif

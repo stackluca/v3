@@ -12,11 +12,13 @@ v3_func_pt func)
 
     v3_object_init(ctx, &afunc->base, 5);
 
+    afunc->base.base.type = V3_DATA_TYPE_FUNCTION;
+    afunc->base.base.__proto__ = Function_prototype;
+
     afunc->name = name;
     afunc->length = arg_count;
     // afunc->is_native = 1;
     // afunc->native_func = func;
-    afunc->base.base.__proto__ = Function_prototype;
 
     return afunc;
 }
