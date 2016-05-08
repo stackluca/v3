@@ -11,6 +11,10 @@ static v3_base_object_t *v3_literal_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_no
 static v3_base_object_t *
 v3_program_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *program);
 
+extern v3_int_t v3_init_Function(v3_ctx_t *ctx);
+extern v3_int_t v3_init_Object(v3_ctx_t *ctx);
+extern v3_int_t v3_init_Number(v3_ctx_t *ctx);
+
 v3_eval_pt v3_evaleators[] = {
     v3_variable_statement_eval, /* v3_syntax_variable_declaration */
     v3_variable_declarator_eval, 
@@ -35,6 +39,7 @@ v3_int_t v3_init_global(v3_ctx_t *ctx)
     ctx->global = global;
 
     // builtin
+    v3_init_Function(ctx);
     v3_init_Object(ctx);
     v3_init_Number(ctx);
 
@@ -106,9 +111,9 @@ v3_variable_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
         value = v3_variable_declarator_eval(ctx, frame, (v3_node_t *)dec[i]);
 
         if (statement->kind.data == dec_kind_var.data) {
-            v3_objec_set(ctx, frame->local, &dec[i]->id->name, value);
+            v3_obj_set(frame->local, v3_str2string(&dec[i]->id->name), value);
         } else {
-            v3_objec_set(ctx, frame->global, &dec[i]->id->name, value);
+            v3_obj_set(frame->global, v3_str2string(&dec[i]->id->name), value);
         }
     }
 

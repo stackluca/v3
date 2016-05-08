@@ -486,7 +486,7 @@ static v3_token_t *
 scanNumericLiteral(v3_tokenizer_t *tokenizer) 
 {
     unsigned int    start, num_index;
-    char            ch, *num, number[20];
+    char            ch, number[20];
     v3_token_t      *token;
 
     ch = CURRENT_CHAR;

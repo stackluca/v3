@@ -7,7 +7,7 @@ struct v3_string_object_s {
     v3_str_t            value;
 };
 
-v3_string_object_t *v3_string_create(v3_ctx_t *ctx, const char *value);
+v3_string_object_t *v3_string_create(v3_ctx_t *ctx, const char *value, size_t len);
 
 static inline void v3_string_init(v3_ctx_t *ctx, v3_string_object_t *str)
 {
@@ -15,5 +15,6 @@ static inline void v3_string_init(v3_ctx_t *ctx, v3_string_object_t *str)
     str->base.type = V3_DATA_TYPE_STRING; 
 }
 
-#define v3_strobj(str) v3_string_create(ctx, str)
+#define v3_strobj(str) v3_string_create(ctx, str, sizeof(str) - 1)
+#define v3_str2string(str) v3_string_create(ctx, (str)->data, (str)->length)
 #endif

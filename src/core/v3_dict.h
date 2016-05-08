@@ -25,7 +25,6 @@ struct v3_dict_s{
 };
 
 extern v3_dict_t *v3_dict_create(v3_pool_t *pool, size_t capacity);
-// extern void v3_dict_t *v3_dict_free(v3_pool_t *pool, size_t capacity);
-extern v3_int_t v3_dict_set(v3_dict_t *dict, v3_str_t *key, void *value);
-extern void *v3_dict_get(v3_dict_t *dict, v3_str_t *key);
+extern void *v3_dict_get(v3_dict_t *dict, const char *key, size_t len);
+extern v3_int_t v3_dict_set(v3_dict_t *dict, const char *key, size_t key_len, void *value);
 #endif

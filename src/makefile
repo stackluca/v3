@@ -1,6 +1,7 @@
 CC=gcc
-INCLUDE=-I core -I base_type -I builtin_type
+INCLUDE=-I core -I base_type -I builtin_object
 CFLAGS=-Wall -ggdb3 -O0 -DWARF2 -DW_AT_call_file -DW_AT_call_line  ${INCLUDE}
+LFLAGS=-lm
 
 headers=\
 v3_pool.h \
@@ -24,14 +25,15 @@ objects=\
 v3_tokenizer.o \
 v3_parser.o \
 v3js.o \
-v3_error_object.o \
 v3_eval.o \
 base_type/v3_function_object.o \
 base_type/v3_number_object.o \
 base_type/v3_object.o \
 base_type/v3_string_object.o \
-builtin_type/v3_Error.o \
-builtin_type/v3_Date.o \
+builtin_object/v3_Error.o \
+builtin_object/v3_Function.o \
+builtin_object/v3_Number.o \
+builtin_object/v3_Object.o \
 core/v3_dict.o \
 core/v3_pool.o \
 core/v3_vector.o \
@@ -39,10 +41,10 @@ core/v3_foundation.o \
 
 
 default:$(objects)
-	$(CC) $(CFLAGS) -o v3js  $(objects)
+	$(CC) $(CFLAGS) -o v3js  $(objects) $(LFLAGS) 
 
 $(objects):%.o:%.c
-	$(CC) -c $(CFLAGS)  $< -o $@
+	$(CC) -c $(CFLAGS) $< -o $@ $(LFLAGS)   
 
 clean:
 	rm -rf *.o
