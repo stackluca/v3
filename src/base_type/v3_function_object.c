@@ -32,3 +32,13 @@ v3_function_create_native(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_obj
     func->native_func = pt;
     return func;
 }
+
+v3_base_object_t *
+v3_function_apply(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_arguments_t *arguments)
+{
+    if (func->is_native) {
+        return func->native_func(ctx, this, arguments);
+    } else {
+        return NULL;
+    }
+}

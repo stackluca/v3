@@ -20,13 +20,13 @@ v3_int_t v3_init_Number(v3_ctx_t *ctx)
     Number = v3_function_create_native(ctx, v3_strobj("Object"), 
                                     v3_numobj(1), v3_Number_construct);
 
+    v3_init_Number_prototype(ctx);
     // v3_number_init(&max_value, 2048 /*TODO:*/);
     for (i = 0; i < V3_NUMBER_POOL_MAX; i++) {
         v3_number_init(ctx, &v3_number_pool[i]);
         v3_number_pool[i].value = i;
     }
     
-    v3_init_Number_prototype(ctx);
 
     v3_obj_set(ctx->global, v3_strobj("Number"), Number);
     v3_function_set_prototype(ctx, Number, Number_prototype);

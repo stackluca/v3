@@ -2,13 +2,13 @@
 #define _V3_BASE_TYPE_H 1
 
 typedef enum {
-    V3_DATA_TYPE_BOOL,
-    V3_DATA_TYPE_NUMBER,
-    V3_DATA_TYPE_STRING,
-    V3_DATA_TYPE_OBJECT,
-    V3_DATA_TYPE_FUNCTION,
-    V3_DATA_TYPE_NULL,
-    V3_DATA_TYPE_UNDEFINED,
+    V3_DATA_TYPE_BOOL = 0,
+    V3_DATA_TYPE_NUMBER = 1,
+    V3_DATA_TYPE_STRING = 2,
+    V3_DATA_TYPE_OBJECT = 3,
+    V3_DATA_TYPE_FUNCTION = 4,
+    V3_DATA_TYPE_NULL = 5,
+    V3_DATA_TYPE_UNDEFINED = 6,
 } v3_data_type;
 
 typedef struct v3_base_object_s v3_base_object_t;

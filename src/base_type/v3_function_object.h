@@ -14,8 +14,8 @@ typedef struct {
     v3_obj_set(prototype, v3_strobj("constructor"), function);
 
 #define v3_obj_set_native_func(ctx, obj, func_name, arg_count) \
-    v3_obj_set(obj, v3_strobj(""func_name""), \
-    v3_function_create_native(ctx, v3_strobj(""func_name""), v3_numobj(arg_count), func_name))
+    v3_obj_set(obj, v3_strobj(#func_name), \
+    v3_function_create_native(ctx, v3_strobj(#func_name), v3_numobj(arg_count), func_name))
 
 typedef v3_base_object_t* (*v3_func_pt)(v3_ctx_t *ctx, v3_base_object_t *self, v3_arguments_t *args);
 
@@ -32,4 +32,6 @@ extern v3_object_t             *Function_prototype;
 
 v3_function_object_t *
 v3_function_create_native(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *arg_count, v3_func_pt pt);
+v3_base_object_t *
+v3_function_apply(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_arguments_t *arguments);
 #endif

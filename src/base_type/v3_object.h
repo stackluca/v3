@@ -22,7 +22,11 @@ v3_object_set(v3_object_t* obj, v3_string_object_t *key, v3_base_object_t *value
 
 v3_base_object_t * 
 v3_object_get(v3_object_t* obj, v3_string_object_t *key);
+v3_base_object_t * 
+v3_object_get_by_str(v3_object_t* obj, const char *key, size_t len);
 
 #define v3_obj_set(obj, key, value) \
     v3_object_set((v3_object_t *)obj, key, (v3_base_object_t *)value);
+#define v3_object_prototype(obj) \
+    v3_object_get_by_str(obj, "prototype", sizeof("prototype") - 1)
 #endif
