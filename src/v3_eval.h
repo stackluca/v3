@@ -8,6 +8,8 @@ struct v3_frame_s {
     v3_object_t     *self;
     // v3_object_t     * 
     v3_frame_t      *prev;
+    v3_list_t       *scope_chain;
+    v3_object_t     *call_obj;
 };
 
 extern v3_int_t v3_init_global(v3_ctx_t *ctx);

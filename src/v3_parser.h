@@ -54,6 +54,19 @@ typedef struct {
     v3_vector_t     *args;
 } v3_new_expr_t;
 
-v3_int_t 
-v3_parse(v3_ctx_t *ctx, const char *code, size_t len, v3_program_node_t **program);
+typedef struct {
+    v3_node_t       node;
+    v3_vector_t     *body;
+} v3_block_statement_t;
+
+struct v3_function_node_s {
+    v3_node_t               node;
+    v3_idetifier_t          *id;
+    v3_vector_t             *params;
+    v3_block_statement_t    *body;
+    //v3_list_t               *scope_chain;
+};
+
+
+v3_int_t v3_parse(v3_ctx_t *ctx, const char *code, size_t len, v3_program_node_t **program);
 #endif

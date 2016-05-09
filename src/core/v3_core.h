@@ -3,6 +3,22 @@
 
 #define V3_DEBUG
 
+#define CHECK_FCT2(__call__, __return__) { \
+    v3_int_t    __rc__; \
+    __rc__ = __call__; \
+    if (__rc__ != V3_OK) { \
+        return __return__; \
+    }\
+}
+
+#define CHECK_FCT(__call__) { \
+    v3_int_t    __rc__; \
+    __rc__ = __call__; \
+    if (__rc__ != V3_OK) { \
+        return __rc__; \
+    }\
+}
+
 typedef struct v3_options_s v3_options_t;
 typedef struct v3_vector_s  v3_vector_t;
 typedef struct v3_vector_s  *v3_vector_pt;
@@ -15,6 +31,7 @@ typedef struct v3_tokenizer_s v3_tokenizer_t;
 typedef struct v3_ctx_s     v3_ctx_t;
 typedef struct v3_error_object_s    v3_error_object_t;
 typedef struct v3_program_node_s v3_program_node_t;
+typedef struct v3_function_node_s v3_function_node_t;
 extern v3_int_t parse_program(v3_ctx_t *ctx, v3_program_node_t **node);
 #include <stdlib.h>
 #include <stdio.h>
@@ -29,6 +46,7 @@ void v3_pdealloc_wrapper(void *userdata, void *value);
 #include <v3_string.h>
 #include <v3_vector.h>
 #include <v3_dict.h>
+#include <v3_list.h>
 #include <v3_foundation.h>
 #include <v3_base_type.h>
 #include "../v3_tokenizer.h"
@@ -45,6 +63,10 @@ typedef enum {
     V3_SYNTAX_VARIABLE_DECLARATOR = 8,  // a=1
     V3_SYNTAX_EXPR_STATEMENT = 9,   // 
     V3_SYNTAX_NEW_EXPR = 10,
+    V3_SYNTAX_BLOCK_STATEMENT = 11,
+    V3_SYNTAX_FUNCTION_DECLARATION = 12, // function statement, eg: var function foo(){}
+    V3_SYNTAX_FUNCTION_EXPR = 13, // functin expr, eg: var foo = function(){}
+    V3_SYNTAX_RETURN_STATEMENT = 13, 
 } v3_syntax_t;
 
 typedef enum {
@@ -112,7 +134,12 @@ struct v3_options_s {
 
 typedef struct {
     size_t              parenthesis_count;
+    v3_vector_t         *labels;
+    v3_bool_t           in_iteration;
+    v3_bool_t           in_switch;
+    v3_bool_t           in_function_body;
     unsigned int        allowin:1;
+
 } v3_tokenizer_state_t;
 
 struct v3_ctx_s {

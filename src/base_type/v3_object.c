@@ -28,12 +28,27 @@ v3_object_t *v3_object_create(v3_ctx_t *ctx, size_t capacity)
 
     return aobj;
 }
+#if 0
+v3_int_t 
+v3_object_set_property(v3_object_t* obj, v3_property_t *property)
+{
+    //v3_base_objet_t     *evalue;
+    return v3_dict_set(obj->__attrs__, property->name.data, property->name.length, property);
+}
+#endif
 
 v3_int_t 
 v3_object_set(v3_object_t* obj, v3_string_object_t *key, v3_base_object_t *value)
 {
     //v3_base_objet_t     *evalue;
     return v3_dict_set(obj->__attrs__, key->value.data, key->value.length, value);
+}
+
+v3_int_t 
+v3_object_set_by_str(v3_object_t* obj, const char *key, size_t len, v3_base_object_t *value)
+{
+    //v3_base_objet_t     *evalue;
+    return v3_dict_set(obj->__attrs__, key, len, value);
 }
 
 v3_base_object_t * 

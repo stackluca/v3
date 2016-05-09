@@ -10,6 +10,9 @@ v3_tokenizer.h \
 v3_error_object.h \
 v3_eval.h \
 base_type/v3_base_type.h \
+base_type/v3_null.h \
+base_type/v3_undefined.h \
+base_type/v3_bool.h \
 base_type/v3_function_object.h \
 base_type/v3_number_object.h \
 base_type/v3_object.h \
@@ -19,6 +22,7 @@ core/v3_dict.h \
 core/v3_pool.h \
 core/v3_vector.h \
 core/v3_foundation.h \
+core/v3_list.h \
 
 
 objects=\
@@ -30,14 +34,18 @@ base_type/v3_function_object.o \
 base_type/v3_number_object.o \
 base_type/v3_object.o \
 base_type/v3_string_object.o \
+base_type/v3_null.o \
+base_type/v3_undefined.o \
+base_type/v3_bool.o \
 builtin_object/v3_Error.o \
 builtin_object/v3_Function.o \
 builtin_object/v3_Number.o \
 builtin_object/v3_Object.o \
 core/v3_dict.o \
-core/v3_pool.o \
-core/v3_vector.o \
 core/v3_foundation.o \
+core/v3_list.o \
+core/v3_vector.o \
+core/v3_pool.o \
 
 
 default:$(objects)

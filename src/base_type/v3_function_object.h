@@ -34,4 +34,6 @@ v3_function_object_t *
 v3_function_create_native(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *arg_count, v3_func_pt pt);
 v3_base_object_t *
 v3_function_apply(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_arguments_t *arguments);
+v3_function_object_t *
+v3_function_create_node(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *arg_count, v3_function_node_t *node);
 #endif
