@@ -24,7 +24,8 @@ v3_int_t v3_init_Error(v3_ctx_t *ctx)
     v3_obj_set(ctx->global, v3_strobj("Error"), (v3_base_object_t *)Error);
 
     v3_function_set_prototype(ctx, Error, Error_prototype);
-    
+
+    v3_init_TypeError(ctx);
     return V3_OK;
 }
 
@@ -44,6 +45,13 @@ static v3_int_t v3_init_Error_prototype(v3_ctx_t *ctx)
 static v3_base_object_t *
 v3_Error_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
 {
-    v3_obj_set(this, v3_strobj("prototype"), Error_prototype);
-    return this;
+    v3_object_t     *error;
+    if (this == &v3_null) {
+        error = v3_object_create(ctx, 5);
+    } else {
+        error = (v3_object_t *)this;
+    }
+
+    v3_obj_set(error, v3_strobj("prototype"), Error_prototype);
+    return error;
 }

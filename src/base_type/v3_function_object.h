@@ -3,6 +3,7 @@
 
 #include <v3_core.h>
 #include <v3_base_type.h>
+#include "../v3_parser.h"
 
 typedef struct {
     size_t          len; 
@@ -10,7 +11,7 @@ typedef struct {
 } v3_arguments_t;
 
 #define v3_function_set_prototype(ctx, function, prototype) \
-    v3_obj_set(function, v3_strobj("prototype"), prototype); \
+    v3_obj_set(function, v3_strobj(INTER_PROTOTYPE), prototype); \
     v3_obj_set(prototype, v3_strobj("constructor"), function);
 
 #define v3_obj_set_native_func(ctx, obj, func_name, arg_count) \
@@ -25,6 +26,7 @@ struct v3_function_object_s {
     v3_number_object_t  *length;    // args count
     unsigned int        is_native;
     v3_func_pt          native_func;
+    v3_list_t           *scope;
     // v3_function_block_t function;
 };
 
@@ -36,4 +38,5 @@ v3_base_object_t *
 v3_function_apply(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_arguments_t *arguments);
 v3_function_object_t *
 v3_function_create_node(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *arg_count, v3_function_node_t *node);
+v3_function_object_t *v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *node, v3_list_t *scope);
 #endif

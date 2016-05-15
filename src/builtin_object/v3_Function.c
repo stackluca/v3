@@ -51,3 +51,17 @@ v3_Function_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *arg
 {
     return V3_NOT_SUPPORT;
 }
+
+#if 0
+v3_object_t *
+v3_Function_create(v3_ctx_t *ctx, v3_function_node_t *func_node, v3_list_t *scope)
+{
+    v3_object_t     *f;
+    f = v3_object_create(ctx, 10);
+    v3_obj_set(f, v3_strobj(INTER_CLASS), v3_strobj("Function"));
+    v3_obj_set(f, v3_strobj(INTER_PROTOTYPE), Function_prototype);
+    
+}
+
+static 
+#endif

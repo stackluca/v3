@@ -6,6 +6,10 @@
 
 extern v3_object_t  *Object_prototype;
 
+#define INTER_PROTOTYPE "[[Prototype]]"
+#define INTER_CLASS     "[[CLASS]]"
+#define INTER_CALL     "[[CALL]]"
+
 struct v3_object_s {
     v3_base_object_t    base; 
     v3_dict_t           *__attrs__;
@@ -29,6 +33,7 @@ v3_object_set_by_str(v3_object_t* obj, const char *key, size_t len, v3_base_obje
 
 #define v3_obj_set(obj, key, value) \
     v3_object_set((v3_object_t *)obj, key, (v3_base_object_t *)value);
+
 #define v3_object_prototype(obj) \
     v3_object_get_by_str(obj, "prototype", sizeof("prototype") - 1)
 #endif

@@ -4,6 +4,7 @@
 #include <v3_core.h>
 
 struct  v3_vector_s {
+    v3_base_object_t    base;
     void *items;
     size_t length;
     size_t capacity;

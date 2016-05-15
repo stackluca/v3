@@ -9,6 +9,8 @@ typedef enum {
     V3_DATA_TYPE_FUNCTION = 4,
     V3_DATA_TYPE_NULL = 5,
     V3_DATA_TYPE_UNDEFINED = 6,
+    V3_DATA_TYPE_VECTOR = 7,
+    V3_DATA_TYPE_REF = 8,
 } v3_data_type;
 
 typedef struct v3_base_object_s v3_base_object_t;

@@ -48,6 +48,7 @@ void v3_pdealloc_wrapper(void *userdata, void *value);
 #include <v3_dict.h>
 #include <v3_list.h>
 #include <v3_foundation.h>
+#include <v3_reference.h>
 #include <v3_base_type.h>
 #include "../v3_tokenizer.h"
 
@@ -123,6 +124,69 @@ struct v3_program_node_s {
     v3_vector_t *body; 
 };
 
+// var a=1, b=2
+typedef struct {
+    v3_node_t   node;
+    v3_str_t    kind;
+    v3_vector_t *declarations; 
+} v3_variable_statement_t;
+
+// foo
+typedef struct {
+    v3_node_t   node;
+    v3_str_t    name;
+} v3_idetifier_t;
+
+// foo=1
+typedef struct {
+    v3_node_t           node;
+    v3_idetifier_t      *id;
+    v3_node_t           *init;
+} v3_variable_declarator_t;
+
+typedef struct {
+    v3_node_t   node;
+    v3_base_object_t    *value;
+    v3_str_t    raw;
+} v3_literal_t;
+
+typedef struct {
+    v3_node_t   node;
+    int         computed; /* when acceor == [ */
+    char        accessor; /* [ or . */
+    v3_node_t   *property;
+    v3_node_t   *object;
+} v3_member_expr_t;
+
+typedef struct {
+    v3_node_t   node;
+    v3_node_t   *callee;
+    v3_vector_t *arguments;
+} v3_call_expr_t;
+
+typedef struct {
+    v3_node_t   node;
+    v3_node_t   *expr;
+} v3_expr_statement_t;
+
+typedef struct {
+    v3_node_t       node;
+    v3_node_t       *callee;
+    v3_vector_t     *args;
+} v3_new_expr_t;
+
+typedef struct {
+    v3_node_t       node;
+    v3_vector_t     *body;
+} v3_block_statement_t;
+
+struct v3_function_node_s {
+    v3_node_t               node;
+    v3_idetifier_t          *id;
+    v3_vector_t             *params;
+    v3_block_statement_t    *body;
+    //v3_list_t               *scope_chain;
+};
 typedef void *(*v3_alloc_pt)(void *userdata, size_t size);
 typedef void (*v3_dealloc_pt)(void *userdata, void *ptr);
 
@@ -150,6 +214,8 @@ struct v3_ctx_s {
     const char          *err;
     v3_error_object_t   *err_obj;
     v3_tokenizer_state_t    state;
+    v3_reference_t      ret;
+    v3_frame_t          *frame;
 };
 
 #define V3_OK 0
@@ -158,7 +224,12 @@ struct v3_ctx_s {
 #define V3_UNEXPEDTED_TOKEN -3
 #define V3_ALLOC_ERROR -4
 #define V3_SYNTAX_ERROR -5
+#define V3_ESYNTAX          V3_SYNTAX_ERROR
 #define V3_UNDEFINED -6
+/** Reference Error*/
+#define V3_EREF          -7
+/** Type Error */
+#define V3_ETYPE          -8
 #define V3_NOT_SUPPORT -100
 
 #define V3_FALSE 0
