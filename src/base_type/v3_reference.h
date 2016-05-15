@@ -5,8 +5,8 @@
 
 typedef struct {
     v3_base_object_t    base;
-    v3_base_object_t    *value;
-    v3_str_t            name;
+    v3_base_object_t    *scope;
+    v3_string_object_t  *name;
 } v3_reference_t;
 
 #define v3_ref(ctx, name, value) \

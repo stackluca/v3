@@ -161,7 +161,7 @@ typedef struct {
 typedef struct {
     v3_node_t   node;
     v3_node_t   *callee;
-    v3_vector_t *arguments;
+    v3_vector_t *arguments; /** item is assigment expr */
 } v3_call_expr_t;
 
 typedef struct {
