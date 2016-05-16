@@ -2,6 +2,7 @@
 #define _V3_VECTOR_H 
 
 #include <v3_core.h>
+#include <v3_base_type.h>
 
 struct  v3_vector_s {
     v3_base_object_t    base;

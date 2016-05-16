@@ -30,8 +30,10 @@ struct v3_base_object_s {
 #include <v3_null.h>
 #include <v3_bool.h>
 #include <v3_object.h>
+#include <v3_function_object.h>
 #include <v3_number_object.h>
 #include <v3_string_object.h>
-#include <v3_function_object.h>
+#include <v3_reference.h>
+#include <v3_vector.h>
 
 #endif

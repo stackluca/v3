@@ -9,6 +9,7 @@ v3_string.h \
 v3_tokenizer.h \
 v3_error_object.h \
 v3_eval.h \
+v3_exception.h\
 base_type/v3_base_type.h \
 base_type/v3_null.h \
 base_type/v3_undefined.h \
@@ -31,6 +32,7 @@ v3_tokenizer.o \
 v3_parser.o \
 v3js.o \
 v3_eval.o \
+v3_exception.o\
 base_type/v3_function_object.o \
 base_type/v3_number_object.o \
 base_type/v3_object.o \

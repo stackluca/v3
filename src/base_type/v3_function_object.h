@@ -2,8 +2,6 @@
 #define _V3_FUNCTION_OBJECT_H 1
 
 #include <v3_core.h>
-#include <v3_base_type.h>
-#include "../v3_parser.h"
 
 typedef struct {
     size_t          len; 

@@ -1,4 +1,5 @@
 #include <v3_core.h>
+#include <v3_reference.h>
 
 void v3_ref_init(v3_reference_t *ref)
 {

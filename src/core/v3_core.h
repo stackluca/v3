@@ -32,6 +32,7 @@ typedef struct v3_ctx_s     v3_ctx_t;
 typedef struct v3_error_object_s    v3_error_object_t;
 typedef struct v3_program_node_s v3_program_node_t;
 typedef struct v3_function_node_s v3_function_node_t;
+typedef struct v3_list_s v3_list_t;
 extern v3_int_t parse_program(v3_ctx_t *ctx, v3_program_node_t **node);
 #include <stdlib.h>
 #include <stdio.h>
@@ -161,7 +162,7 @@ typedef struct {
 typedef struct {
     v3_node_t   node;
     v3_node_t   *callee;
-    v3_vector_t *arguments; /** item is assigment expr */
+    v3_vector_t *arguments; /** item is assignment expr */
 } v3_call_expr_t;
 
 typedef struct {
@@ -172,7 +173,7 @@ typedef struct {
 typedef struct {
     v3_node_t       node;
     v3_node_t       *callee;
-    v3_vector_t     *args;
+    v3_vector_t     *arguments; /** item is assignment expr */
 } v3_new_expr_t;
 
 typedef struct {
@@ -187,6 +188,7 @@ struct v3_function_node_s {
     v3_block_statement_t    *body;
     //v3_list_t               *scope_chain;
 };
+
 typedef void *(*v3_alloc_pt)(void *userdata, size_t size);
 typedef void (*v3_dealloc_pt)(void *userdata, void *ptr);
 
@@ -205,6 +207,16 @@ typedef struct {
     unsigned int        allowin:1;
 
 } v3_tokenizer_state_t;
+
+typedef struct v3_frame_s v3_frame_t;
+
+struct v3_frame_s {
+    v3_object_t     *global;
+    v3_list_t       *scopes;    /** scope chain */
+    v3_object_t     *call_obj; /** the top scope of scopes */
+    v3_object_t     *this;      
+    v3_frame_t      *prev;
+};
 
 struct v3_ctx_s {
     v3_pool_t           *pool; 

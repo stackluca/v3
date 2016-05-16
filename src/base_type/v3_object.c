@@ -64,3 +64,5 @@ v3_object_get_by_str(v3_object_t* obj, const char *key, size_t len)
     //v3_base_objet_t     *evalue;
     return v3_dict_get(obj->__attrs__, key, len);
 }
+
+#define V3_OBJ_GET(obj, _str) v3_object_get_by_str(obj, str, sizeof(_str)-1)

@@ -1,16 +1,24 @@
 #include <v3_core.h>
 #include "v3_eval.h"
 #include "v3_parser.h"
+#include "v3_exception.h"
 #include <assert.h>
 
-#define V3_EVAL_NODE(node, frame) \
-    v3_evaleators[node->type](ctx, frame, node)
+#define V3_EVAL_NODE(node) \
+    v3_evaleators[((v3_node_t *)(node))->type](ctx, node)
 #define V3_SET_RETURN(_name, _value) \
     ctx->ret.name = (_name); \
     ctx->ret.value = (v3_base_object_t *)(_value)
 // static v3_object_t v3_global;
+#define v3_get_value v3_ref_get_value
 
-
+static v3_object_t *
+v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values);
+static v3_base_object_t *
+v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values);
+static v3_base_object_t *
+v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arg_values);
+static v3_vector_t *v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params);
 
 extern v3_int_t v3_init_Function(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Object(v3_ctx_t *ctx);
@@ -81,9 +89,11 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
         return rc;
     }
 
-    rc = v3_program_eval(ctx, NULL, (v3_node_t *)program);
-    if (rc != V3_OK) return rc;
-    ret = ctx->ret.value;
+    ret = v3_program_eval(ctx, (v3_node_t *)program);
+    if (ret == NULL) {
+        printf("an error occured\n");
+        return V3_OK;
+    }
 
     if (ret != (v3_base_object_t *)&v3_null) {
         owner = ret;
@@ -106,73 +116,69 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
 }
 
 v3_base_object_t * 
-v3_program_eval(v3_ctx_t *ctx, v3_frame_t *aframe, v3_node_t *anode)
+v3_program_eval(v3_ctx_t *ctx, v3_node_t *anode)
 {
     size_t                  i = 0;
     v3_program_node_t       *program;
     v3_node_t               *node, **nodes;
     v3_frame_t              frame;
+    v3_base_object_t        *ret;
 
     program = (v3_program_node_t *)anode;
     frame.global = ctx->global;
-    frame.local  = ctx->global;
-    frame.scope = v3_list_create(ctx->pool);
-    if (frame.scope == NULL) return V3_ERROR;
+    frame.scopes = v3_list_create(ctx->pool);
+    if (frame.scopes == NULL) return NULL;
 
-    v3_list_prepend(frame.scope, ctx->global);
+    v3_list_prepend(frame.scopes, ctx->global);
 
-    frame.self   = NULL;
+    frame.this   = NULL;
     frame.prev   = NULL;
 
     nodes = program->body->items;
 
     for (; i < program->body->length; i++) {
         node = nodes[i];
-        CHECK_FCT(v3_evaleators[node->type](ctx, &frame, node));
+        // TODO: return statement
+        ret = v3_evaleators[node->type](ctx, node);
     }
 
-    return V3_OK;
+    return ret;
 }
 
- v3_base_object_t *
-v3_new_expr_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_base_object_t *
+v3_new_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_new_expr_t           *expr;
-    v3_object_t             *this;
-    v3_int_t                rc;
+    v3_base_object_t        *ret;
+    v3_vector_t             *arg_values;
+    v3_function_object_t    *func_obj;
 
     assert(node->type == V3_SYNTAX_NEW_EXPR);
 
     expr = (v3_new_expr_t *)node;
     assert(expr->callee != NULL);
-    CHECK_FCT(v3_evaleators[expr->callee->type](ctx, frame, expr->callee));
 
-    if (v3_ref_base(&ctx->ret)->type != V3_DATA_TYPE_FUNCTION) {
-        // TODO: return undefined;
-        // TODO: throw SyntaxError
-        //ctx->ret->value = v3_TypeError();
-        return V3_SYNTAX_ERROR;
+    ret = v3_evaleators[expr->callee->type](ctx, expr->callee);
+
+    ret = v3_ref_get_value(ctx, ret);
+    if (ret == NULL) return NULL;
+    if (ret->type != V3_DATA_TYPE_FUNCTION) {
+        v3_set_error(ctx, v3_SyntaxError);
+        return NULL;
     }
+    func_obj = (v3_function_object_t *)ret;
 
-    this = v3_object_create(ctx, 5);
-    if (this == NULL) return V3_ERROR;
+    arg_values = v3_arguments_eval(ctx, expr->arguments);
 
-    if (expr->callee->type != V3_SYNTAX_CALL_EXPR) {
-        return V3_SYNTAX_ERROR;
-    }
-
-    rc = v3_call_expr_eval(ctx, frame, expr->callee); 
-    
-    ctx->ret.value = (v3_base_object_t *)this;
-    return rc;
+    return v3_function_construct(ctx, func_obj, arg_values);
 }
 
- v3_base_object_t *
-v3_variable_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_base_object_t *
+v3_variable_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_variable_statement_t     *statement;
     size_t                      i;
-    v3_base_object_t            *value;
+    v3_base_object_t            *ret;
     v3_variable_declarator_t    **dec;
 
     statement = (v3_variable_statement_t *)node;
@@ -182,22 +188,15 @@ v3_variable_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
     dec = statement->declarations->items;
 
     for (i = 0; i < statement->declarations->length; i++) {
-        CHECK_FCT(v3_variable_declarator_eval(ctx, frame, (v3_node_t *)dec[i]));
-
-        value = ctx->ret.value;
-
-        if (statement->kind.data == dec_kind_var.data) {
-            CHECK_FCT(v3_obj_set(frame->local, v3_str2string(&dec[i]->id->name), value));
-        } else {
-            CHECK_FCT(v3_obj_set(frame->global, v3_str2string(&dec[i]->id->name), value));
-        }
+        ret = v3_variable_declarator_eval(ctx, (v3_node_t *)dec[i]);
+        if (ret == NULL) return NULL;
     }
 
-    return V3_OK;
+    return ret;
 }
 
- v3_base_object_t * 
-v3_function_declaration_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_base_object_t * 
+v3_function_declaration_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_function_node_t          *func_node;
     v3_function_object_t        *func_obj;
@@ -205,67 +204,76 @@ v3_function_declaration_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
     func_node = (v3_function_node_t *)node;
     // TODO: push scope if func_node's name is not null 
 
-    func_obj = v3_function_from_node(ctx, func_node, frame->scope);
-    if (func_obj == NULL) return V3_ERROR;
+    func_obj = v3_function_from_node(ctx, func_node, ctx->frame->scopes);
+    if (func_obj == NULL) return NULL;
 
-    v3_object_set_by_str((v3_object_t *)frame->scope->elts->value, 
+    v3_object_set_by_str((v3_object_t *)ctx->frame->scopes->elts->value, 
                             func_node->id->name.data, 
                             func_node->id->name.length, 
                             (v3_base_object_t *)func_obj);
 
-    return V3_OK;
-}
-
- v3_base_object_t * 
-v3_function_expr_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
-{
-    v3_function_node_t          *func_node;
-    v3_function_object_t        *func_obj;
-
-    func_node = (v3_function_node_t *)node;
-
-    func_obj = v3_function_from_node(ctx, func_node, frame->scope);
-    if (func_obj == NULL) return V3_ERROR;
-
-    ctx->ret.name = func_node->id->name;
-    ctx->ret.value = (v3_base_object_t *)func_obj;
-
-    return V3_OK;
+    return (v3_base_object_t *)func_obj;
 }
 
 v3_base_object_t * 
-v3_variable_declarator_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_function_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+#if 0
+    v3_function_node_t          *func_node;
+    v3_function_object_t        *func_obj;
+    func_node = (v3_function_node_t *)node;
+
+    func_obj = v3_function_from_node(ctx, func_node, ctx->frame->scopes);
+    if (func_obj == NULL) return NULL;
+
+    ctx->ret.name = func_node->id->name;
+    ctx->ret.value = (v3_base_object_t *)func_obj;
+#endif
+
+    return (v3_base_object_t *)&v3_null;
+}
+
+v3_base_object_t * 
+v3_variable_declarator_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_variable_declarator_t    *dec;
+    v3_base_object_t            *ret, *ref, *value;
 
     assert(node->type == V3_SYNTAX_VARIABLE_DECLARATOR);
 
     dec = (v3_variable_declarator_t *)node;
-    CHECK_FCT(v3_evaleators[dec->init->type](ctx, frame, dec->init));
 
-    ctx->ret.name = dec->id->name;
-    // value already seted by dec->init;
+    ref = v3_identifier_eval(ctx, (v3_node_t *)dec->id);    
+    if (ref == NULL) return NULL;
 
-    return V3_OK;
+    value = v3_evaleators[dec->init->type](ctx, (v3_node_t *)dec->init);
+    if (value == NULL) return NULL;
+
+    value = v3_ref_get_value(ctx, value);
+    if (value == NULL) return NULL;
+
+    ret = v3_ref_put_value(ctx, ref, value);
+    if (ret == NULL) return NULL;
+
+    return (v3_base_object_t *)v3_str2string(&dec->id->name);
 }
 
 /** get value of literl */
 v3_base_object_t * 
-v3_literal_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_literal_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_literal_t    *literal;
 
     assert(node->type == V3_SYNTAX_LITERAL);
     literal = (v3_literal_t *)node;
 
-    ctx->ret.value = literal->value;
+    //ctx->ret.value = literal->value;
 
-    return V3_OK;
-    //return literal->value;
+    return literal->value;
 }
 
 v3_base_object_t *
-v3_identifier_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_identifier_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_idetifier_t          *ident;
     v3_base_object_t        *value;
@@ -275,28 +283,29 @@ v3_identifier_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
 
     ident = (v3_idetifier_t *)node;
 
-    for (part = frame->scopes->elts; part != NULL; part = part->next) {
+    for (part = ctx->frame->scopes->elts; part != NULL; part = part->next) {
         scope = (v3_object_t *)part;
         value = v3_object_get_by_str(scope, ident->name.data, ident->name.length); 
         if (value != NULL) {
             // ctx->ret.value = v3_ref_create(ctx, ident->name, (v3_base_object_t*)scope);
             // if (ctx->ret.value == NULL) return V3_ERROR;
             ref = v3_ref_create(ctx, v3_str2string(&ident->name), (v3_base_object_t *)scope);
+            return (v3_base_object_t *)ref;
         }
     }
 
-    ref = v3_ref_create(ctx, v3_str2string(&ident->name), (v3_base_object_t *)&v3_null);
-
-    return ref;
+    return (v3_base_object_t *)v3_ref_create(ctx, 
+                v3_str2string(&ident->name), 
+                (v3_base_object_t *)&v3_null);
 }
 
 v3_base_object_t * 
-v3_expr_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_expr_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_expr_statement_t         *expr;
     expr = (v3_expr_statement_t *)node;
 
-    return v3_evaleators[expr->expr->type](ctx, frame, node);
+    return v3_evaleators[expr->expr->type](ctx, node);
 }
 
 v3_base_object_t *
@@ -314,7 +323,7 @@ v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
         prototype = (v3_object_t *)v3_object_prototype(object);
         if (prototype != NULL) {
             //ret = v3_object_get(prototype, key);
-            ret = v3_find_property(prototype, key);
+            ret = v3_find_property((v3_base_object_t *)prototype, key);
             if (ret != NULL) return ret;
         }
 
@@ -328,23 +337,26 @@ v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
 }
 
 
-v3_base_object_t *
+static v3_vector_t *
 v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params)
 {
-    v3_vector_t     *arguments;    
-    v3_base_object_t    **item;
+    v3_vector_t         *arguments;    
+    v3_base_object_t    **item, *ret;
+    size_t              i;
+    v3_node_t           **node;
+
     //v3_object_t         *arguments;
 
     if (params == NULL || params->length == 0) {
         //arguments = v3_object_create(ctx, 5);
         //v3_object_set(arguments, v3_strobj("length"), v3_numobj(0));
-        arguments = v3_vector_new(ctx->options, 0);
+        arguments = v3_vector_new(ctx->options, sizeof(void *), 0);
     } else {
-        arguments = v3_vector_new(ctx->options, params->length);
+        arguments = v3_vector_new(ctx->options, sizeof(void *), params->length);
         //v3_object_set(arguments, v3_strobj("length"), v3_numobj(params->length));
-
+        node = params->items;
         for (i = 0; i< params->length; i++) {
-            ret = V3_EVAL_NODE(old_frame, &params[i]);
+            ret = V3_EVAL_NODE(node[i]);
             item = v3_vector_push(ctx->options, arguments);
             ret = v3_ref_get_value(ctx, ret);
             *item = ret;
@@ -369,12 +381,13 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 
     call_expr = (v3_call_expr_t *)node;
     // TODO: get this
-    member = (V3_EVAL_NODE(call_expr->callee, old_frame)); // result 1
+    member = (V3_EVAL_NODE(call_expr->callee)); // result 1
 
-    ret = v3_get_value(member);
+    ret = v3_get_value(ctx, member);
+    if (ret == NULL) return NULL;
 
     if (ret->type != V3_DATA_TYPE_FUNCTION) {
-        v3_set_error(v3_TypeError); 
+        v3_set_error(ctx, v3_TypeError); 
         return NULL;
     }
 
@@ -382,8 +395,7 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 
     // set this
     if (member->type == V3_DATA_TYPE_REF) {
-        ref = member;
-        t = ref->scope;
+        ref = (v3_reference_t *)member;
         if (ref->scope == frame->call_obj) {
             // foo();
             this = &v3_null;
@@ -396,13 +408,13 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
         this = &v3_null;
     }
 
-    v3_function_call(ctx, func_obj, this, arguments);
+    ret = v3_function_call(ctx, func_obj, this, arguments);
 
-    return V3_OK;
+    return ret;
 }
 
 v3_base_object_t *
-v3_block_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
+v3_block_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_block_statement_t    *block;
     size_t                  i;
@@ -412,7 +424,7 @@ v3_block_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
 
     for (i = 0; i < block->body->length; i++) {
         node = block->body[i];
-        ret = v3_evaleators[node->type](ctx, frame, node);
+        ret = v3_evaleators[node->type](ctx, node);
         if (node->type == V3_SYNTAX_RETURN_STATEMENT) {
             return ret;
         }
@@ -423,13 +435,13 @@ v3_block_statement_eval(v3_ctx_t *ctx, v3_frame_t *frame, v3_node_t *node)
 
 
 // entering execution context
-v3_base_object_t *
-v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arguments)
+static v3_base_object_t *
+v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arg_values)
 {
     v3_frame_t                  frame;
     v3_object_t                 *activation;
 
-    activation = v3_function_build_activation(ctx, func);
+    activation = v3_function_build_activation(ctx, func, arg_values);
     frame.call_obj = v3_object_clone(func_obj->call_obj);
     // TODO: create argument objct by arguments
     // v3_object_set(frame.call_obj, v3_str2string("arguments"), arg_obj);
@@ -448,10 +460,11 @@ v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *th
 
     // restore prev frame;
     v3_frame_pop(ctx);
+    return ret;
 }
 
 static v3_object_t *
-v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func)
+v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values)
 {
     v3_object_t                 *activation;
     v3_variable_declarator_t    *var_dec;
@@ -459,7 +472,7 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func)
 
     /*---- set activation  */
     // set argumetns
-    arg_obj = v3_arguments_object_create(ctx, arguments);
+    arg_obj = v3_arguments_object_create(ctx, arg_values);
     v3_object_set(activation, v3_str2string("arguments", arg_obj)); 
 
     activation = v3_object_create(ctx, func->params->length + func->func_dec->length + func->func->var_dec->length);
@@ -495,4 +508,26 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func)
     }
 
     return activation;
+}
+
+static v3_base_object_t *
+v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values)
+{
+    v3_object_t     *obj;
+    v3_object_t     *prototype;
+    
+    obj = v3_object_create(ctx, 20);
+    v3_object_set(obj, v3_strobj(INTER_CLASS), v3_strobj("Object"));
+    prototype = V3_OBJ_GET(obj, "prototype");
+
+    if (prototype != NULL) {
+        obj->base.__proto__ = prototype;
+    } 
+
+    ret = v3_function_call(ctx, func, obj, arg_values);
+    if (ret->type == V3_DATA_TYPE_OBJECT) {
+        return ret;
+    } else {
+        return obj;
+    }
 }
