@@ -1,6 +1,7 @@
 
 #ifndef _V3_UNDEFINED_TYPE_H
 #define _V3_UNDEFINED_TYPE_H 1
+#include <v3_core.h>
 
 typedef struct {
     v3_base_object_t base;

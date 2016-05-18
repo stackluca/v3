@@ -1,6 +1,6 @@
 #ifndef _V3_BOOL_TYPE_H
 #define _V3_BOOL_TYPE_H 1
-
+#include <v3_core.h>
 typedef struct {
     v3_base_object_t        base;
     short                   value;

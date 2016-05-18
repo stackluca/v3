@@ -1,5 +1,8 @@
 #include <v3_core.h>
-#include <v3_eval.h>
+#include "../v3_eval.h"
+#include "../v3_parser.h"
+
+static v3_int_t v3_find_var(v3_ctx_t *ctx, v3_node_t *node, void *userdata);
 
 v3_function_object_t *
 v3_function_create(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *arg_count)
@@ -34,9 +37,12 @@ v3_function_create_native(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_obj
 }
 
 v3_function_object_t *
-v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *node, v3_list_t *scope)
+v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *func_node, v3_list_t *scope)
 {
-    v3_function_object_t *func;
+    v3_function_object_t    *func_obj;
+    v3_string_object_t      *strobj;
+    size_t                  arg_count;
+    v3_int_t                rc;
 
     if (func_node->id != NULL) {
         strobj = v3_str2string(&func_node->id->name);
@@ -46,51 +52,53 @@ v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *node, v3_list_t *scope)
 
     arg_count = func_node->params == NULL ? 0 : func_node->params->length;
 
-    func_obj = v3_function_from_node(ctx, strobj, v3_numobj(arg_count), func_node);
-    func = v3_function_create(ctx, name, arg_count);
-    if (func == NULL) return NULL;
+    func_obj = v3_function_create(ctx, strobj, v3_numobj(arg_count));
+    if (func_obj == NULL) return NULL;
 
-    func->func_node = node;
+    func_obj->node = func_node;
 
-    call_object = v3_object_create(ctx, 5);
-    if (call_object == NULL) return NULL;
-    func_obj->call_obj = call_object;
+    func_obj->node->var_decs = v3_vector_new(ctx->options, 10, sizeof(void *));
+    rc = v3_reverse_block_do(ctx, func_node->body, v3_find_var, (void *)func_obj->node->var_decs);
+    if (rc != V3_OK) return NULL;
 
-    // set arguments into call_object
-    CHECK_FCT(v3_object_set(call_object, v3_strobj("arguments"), argument));
+    // TODO: add func_decs;
 
-    if (func_node->params != NULL) {
-        for (i = 0; i < func_node->params.length; i++) {
-            assert(func_node->params[i].type == V3_SYNTAX_IDENTIFIER);
-            ident_node = (v3_idetifier_t *)func_node->params[i];
-            v3_obj_set(call_object, v3_str2string(ident_node->name), &v3_undefined);
+    func_obj->scopes = v3_list_clone(ctx->frame->scopes);
+
+    return func_obj;
+}
+
+static v3_int_t v3_find_var(v3_ctx_t *ctx, v3_node_t *node, void *userdata)
+{
+    v3_vector_t                 *vars; 
+    v3_variable_statement_t     *var_stmt;
+    v3_variable_declarator_t    **decs, **adec;
+    size_t                      i;
+
+    vars = (v3_vector_t *)userdata;
+
+    if (node->type == V3_SYNTAX_VARIABLE_DECLARATION) {
+        var_stmt = (v3_variable_statement_t *)node;
+
+        decs = var_stmt->declarations->items; 
+        for (i = 0; i < var_stmt->declarations->length; i++) {
+            
+            if (var_stmt->kind.data == dec_kind_var.data) {
+                adec = v3_vector_push(ctx->options, vars);
+                if (adec == NULL) return V3_ERROR;
+                *adec = decs[i];
+            } 
         }
     }
 
-    for (i = 0; i < block->body->length; i++) {
-        node = block->body[i];
-        // TODO: when type is if, while, switch, try
-        if (node->type == V3_SYNTAX_VARIABLE_DECLARATION) {
-            var_stmt = node;
-
-            for (i = 0; i < statement->declarations->length; i++) {
-                if (statement->kind.data == dec_kind_var.data) {
-                    v3_obj_set(call_object, v3_str2string(&dec[i]->id->name), &v3_undefined);
-                } 
-            }
-        }
-    }
-
-    func_obj->scope = v3_list_clone(frame->scope);
-
-    return func;
+    return V3_OK;
 }
 
 v3_base_object_t *
 v3_function_apply(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_arguments_t *arguments)
 {
     if (func->is_native) {
-        return func->native_func(ctx, this, arguments);
+        return func->native_func(ctx);
     } else {
         return NULL;
     }

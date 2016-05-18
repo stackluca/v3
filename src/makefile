@@ -42,6 +42,7 @@ base_type/v3_undefined.o \
 base_type/v3_bool.o \
 base_type/v3_reference.o \
 builtin_object/v3_Error.o \
+builtin_object/v3_TypeError.o \
 builtin_object/v3_Function.o \
 builtin_object/v3_Number.o \
 builtin_object/v3_Object.o \

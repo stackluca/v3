@@ -1,11 +1,12 @@
 #include <v3_core.h>
+#include <assert.h>
+#include "../v3_exception.h"
 
 static v3_int_t v3_init_prototype(v3_ctx_t *ctx);
-static v3_base_object_t *TypeError(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
 
-static v3_base_object_t *TypeError(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
+static v3_base_object_t *TypeError(v3_ctx_t *ctx);
 
-v3_object_t                     *Error_prototype;
+v3_object_t                     *TypeError_prototype;
 
 v3_int_t v3_init_TypeError(v3_ctx_t *ctx)
 {
@@ -34,11 +35,11 @@ static v3_int_t v3_init_prototype(v3_ctx_t *ctx)
 }
 
 static v3_base_object_t *
-TypeError(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+TypeError(v3_ctx_t *ctx)
 {
     v3_object_t *error;
-    error = (v3_object_t *)Error(ctx, ctx, args);
+    error = (v3_object_t *)Error(ctx);
 
-    v3_obj_set(this, v3_strobj("prototype"), TypeError_prototype);
-    return error;
+    v3_obj_set(ctx->frame->this, v3_strobj("prototype"), TypeError_prototype);
+    return (v3_base_object_t *)error;
 }

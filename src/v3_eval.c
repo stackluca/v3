@@ -19,12 +19,12 @@ v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *ar
 static v3_base_object_t *
 v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arg_values);
 static v3_vector_t *v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params);
+static v3_object_t *v3_arguments_object_create(v3_ctx_t *ctx, v3_vector_t *arg_values);
 
 extern v3_int_t v3_init_Function(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Object(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Number(v3_ctx_t *ctx);
 
-static v3_base_object_t *v3_find_property(v3_base_object_t *owner, v3_string_object_t *key);
 // typedef void (*v3_disp_result_pt)(v3_ctx_t *ctx, v3_base_object_t *value);
 
 v3_eval_pt v3_evaleators[] = {
@@ -308,33 +308,6 @@ v3_expr_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
     return v3_evaleators[expr->expr->type](ctx, node);
 }
 
-v3_base_object_t *
-v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
-{
-    v3_object_t         *prototype, *object;
-    v3_base_object_t    *ret;
-    if (owner->type == V3_DATA_TYPE_OBJECT
-        || owner->type == V3_DATA_TYPE_FUNCTION) {
-        object = (v3_object_t *)owner;
-
-        ret = v3_object_get(object, key);
-        if (ret != NULL) return ret;
-
-        prototype = (v3_object_t *)v3_object_prototype(object);
-        if (prototype != NULL) {
-            //ret = v3_object_get(prototype, key);
-            ret = v3_find_property((v3_base_object_t *)prototype, key);
-            if (ret != NULL) return ret;
-        }
-
-        return v3_find_property((v3_base_object_t *)object->base.__proto__, key);
-        // ret = v3_object_get(object->base.__proto__, key);
-        // return ret;
-    } else {
-        ret = v3_find_property((v3_base_object_t *)owner->__proto__, key);
-        return ret;
-    }
-}
 
 
 static v3_vector_t *
@@ -372,10 +345,8 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     v3_call_expr_t          *call_expr;
     v3_base_object_t        *ret, *member, *this;
     v3_function_object_t    *func_obj;
-    v3_block_statement_t    *block;
-    v3_variable_statement_t *var_stmt;
-    v3_int_t                rc;
     v3_reference_t          *ref;
+    v3_vector_t             *arg_values;
 
     assert(node->type == V3_SYNTAX_CALL_EXPR);
 
@@ -396,19 +367,22 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     // set this
     if (member->type == V3_DATA_TYPE_REF) {
         ref = (v3_reference_t *)member;
-        if (ref->scope == frame->call_obj) {
+        if (ref->scope == (v3_base_object_t *)ctx->frame->call_obj) {
             // foo();
-            this = &v3_null;
+            this = (v3_base_object_t *)&v3_null;
         } else {
             // for a.foo();
-            this = ref-scope;
+            this = ref->scope;
         }
     } else {
         // 1.toString();
-        this = &v3_null;
+        this = (v3_base_object_t *)&v3_null;
     }
 
-    ret = v3_function_call(ctx, func_obj, this, arguments);
+    arg_values = v3_arguments_eval(ctx, call_expr->arguments);
+    if (arg_values == NULL) return NULL;
+
+    ret = v3_function_call(ctx, func_obj, this, arg_values);
 
     return ret;
 }
@@ -418,14 +392,17 @@ v3_block_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_block_statement_t    *block;
     size_t                  i;
+    v3_base_object_t        *ret;
+    v3_node_t               **item;
 
     assert(node->type == V3_SYNTAX_BLOCK_STATEMENT);
-    block = node;
+    block = (v3_block_statement_t *)node;
 
+    item = block->body->items;
     for (i = 0; i < block->body->length; i++) {
-        node = block->body[i];
-        ret = v3_evaleators[node->type](ctx, node);
-        if (node->type == V3_SYNTAX_RETURN_STATEMENT) {
+        // node = items[i];
+        ret = v3_evaleators[item[i]->type](ctx, item[i]);
+        if (item[i]->type == V3_SYNTAX_RETURN_STATEMENT) {
             return ret;
         }
     }
@@ -434,29 +411,39 @@ v3_block_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
 }
 
 
+#define v3_frame_push(ctx, newFrame) \
+    (newFrame)->prev = ctx->frame; \
+    ctx->frame = (newFrame);\
+    
+#define v3_frame_pop(ctx) \
+    ctx->frame = ctx->frame->prev;\
+    
+
 // entering execution context
 static v3_base_object_t *
 v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arg_values)
 {
     v3_frame_t                  frame;
     v3_object_t                 *activation;
+    v3_base_object_t            *ret;
 
     activation = v3_function_build_activation(ctx, func, arg_values);
-    frame.call_obj = v3_object_clone(func_obj->call_obj);
+    // frame.call_obj = v3_object_clone(func_obj->call_obj);
     // TODO: create argument objct by arguments
     // v3_object_set(frame.call_obj, v3_str2string("arguments"), arg_obj);
-    v3_list_prepend(func_obj->scope, activation);
-    frame.scope = func_obj->scope;
+    v3_list_prepend(func->scopes, activation);
+    frame.scopes = func->scopes;
+    frame.call_obj = activation;
 
-    v3_frame_push(ctx, frame);
+    v3_frame_push(ctx, &frame);
 
-    if (func_obj->is_native) {
-        ret = func_obj->native_func(ctx);
+    if (func->is_native) {
+        ret = func->native_func(ctx);
     } else {
-        ret = v3_block_statement_eval(ctx, block);
+        ret = v3_block_statement_eval(ctx, (v3_node_t *)func->node->body);
     }
 
-    v3_list_pop(func->scope);
+    v3_list_pop(func->scopes);
 
     // restore prev frame;
     v3_frame_pop(ctx);
@@ -467,23 +454,34 @@ static v3_object_t *
 v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values)
 {
     v3_object_t                 *activation;
-    v3_variable_declarator_t    *var_dec;
+    v3_variable_declarator_t    **var_decs;
     v3_object_t                 *arg_obj;
+    size_t                      i;
+    v3_function_node_t          *func_node;
+    v3_base_object_t            **values;
+    v3_string_object_t          **para_names;
 
+    func_node = func->node;
+
+    activation = v3_object_create(ctx, func_node->params->length 
+                                        + func_node->func_decs->length 
+                                        + func_node->var_decs->length);
     /*---- set activation  */
     // set argumetns
     arg_obj = v3_arguments_object_create(ctx, arg_values);
-    v3_object_set(activation, v3_str2string("arguments", arg_obj)); 
+    v3_object_set(activation, v3_strobj("arguments"), (v3_base_object_t *)arg_obj); 
 
-    activation = v3_object_create(ctx, func->params->length + func->func_dec->length + func->func->var_dec->length);
     // parameters;
-    for (i = 0; i < func->params->length; i++) {
-        if (i < arguments->length) {
+    values = arg_values->items;
+    para_names = func_node->params->items;
+    for (i = 0; i < func_node->params->length; i++) {
+        if (i < arg_values->length) {
             v3_object_set(activation, 
-                    (v3_string_object_t *)func->params->items[i], 
-                    (v3_base_object_t *)arguments->items[i]);
+                    para_names[i],
+                    values[i]);
         } else {
-            v3_object_set(activation, (v3_string_object_t *)func->params->items[i], (v3_base_object_t *)&v3_undefined);
+            v3_object_set(activation, para_names[i], 
+                            (v3_base_object_t *)&v3_undefined);
         }
     }
 
@@ -496,14 +494,15 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vecto
 #endif
 
     // var dec
-    var_dec = func->var_dec->items;
-    for (i = 0; func->var_dec->length; i++) {
+    var_decs = func_node->var_decs->items;
+    for (i = 0; func_node->var_decs->length; i++) {
         if (v3_object_get_by_str(activation, 
-                    var_dec[i].id->name.data, 
-                    var_dec[i].id->name.length) != NULL) {
+                    var_decs[i]->id->name.data, 
+                    var_decs[i]->id->name.length) != NULL) {
             v3_object_set_by_str(activation, 
-                    var_dec[i].id->name.data, 
-                    var_dec[i].id->name.length);
+                    var_decs[i]->id->name.data, 
+                    var_decs[i]->id->name.length, 
+                    (v3_base_object_t *)&v3_undefined);
         }
     }
 
@@ -514,20 +513,49 @@ static v3_base_object_t *
 v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values)
 {
     v3_object_t     *obj;
-    v3_object_t     *prototype;
+    // v3_object_t     *prototype;
+    v3_base_object_t    *ret;
     
     obj = v3_object_create(ctx, 20);
-    v3_object_set(obj, v3_strobj(INTER_CLASS), v3_strobj("Object"));
-    prototype = V3_OBJ_GET(obj, "prototype");
+    v3_object_set(obj, v3_strobj(INTER_CLASS), (v3_base_object_t *)v3_strobj("Object"));
+    #if 0
+    prototype = (v3_object_t *)V3_OBJ_GET(obj, "prototype");
 
     if (prototype != NULL) {
         obj->base.__proto__ = prototype;
     } 
+    #endif
 
-    ret = v3_function_call(ctx, func, obj, arg_values);
+    ret = v3_function_call(ctx, func, (v3_base_object_t *)obj, arg_values);
     if (ret->type == V3_DATA_TYPE_OBJECT) {
         return ret;
     } else {
-        return obj;
+        return (v3_base_object_t *)obj;
     }
+}
+
+static v3_object_t *v3_arguments_object_create(v3_ctx_t *ctx, v3_vector_t *arg_values)
+{
+    // TODO:
+    v3_object_t     *arguments;
+    arguments = v3_object_create(ctx, 5);
+    return arguments;
+}
+
+v3_int_t 
+v3_reverse_block_do(v3_ctx_t *ctx, v3_block_statement_t * block, v3_node_do_pt handler, void *userdata)
+{
+    size_t      i;
+    v3_node_t       **nodes;
+
+    nodes = block->body->items; 
+    for (i = 0; i < block->body->length; i++) {
+        if (nodes[i]->type == V3_SYNTAX_BLOCK_STATEMENT) {
+            CHECK_FCT(v3_reverse_block_do(ctx, (v3_block_statement_t *)nodes[i], handler, userdata));
+        } else {
+            CHECK_FCT(handler(ctx, nodes[i], userdata));
+        }
+    }
+
+    return V3_OK;
 }

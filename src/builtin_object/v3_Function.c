@@ -1,7 +1,7 @@
 #include <v3_core.h>
 
 static v3_base_object_t *
-v3_Function_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
+v3_Function_construct(v3_ctx_t *ctx);
 static v3_int_t v3_init_Function_prototype(v3_ctx_t *ctx);
 
 v3_object_t             *Function_prototype;
@@ -47,9 +47,9 @@ static v3_int_t v3_init_Function_prototype(v3_ctx_t *ctx)
 }
 
 static v3_base_object_t *
-v3_Function_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+v3_Function_construct(v3_ctx_t *ctx)
 {
-    return V3_NOT_SUPPORT;
+    return NULL;
 }
 
 #if 0

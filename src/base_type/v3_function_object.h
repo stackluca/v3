@@ -16,7 +16,7 @@ typedef struct {
     v3_obj_set(obj, v3_strobj(#func_name), \
     v3_function_create_native(ctx, v3_strobj(#func_name), v3_numobj(arg_count), func_name))
 
-typedef v3_base_object_t* (*v3_func_pt)(v3_ctx_t *ctx, v3_base_object_t *self, v3_arguments_t *args);
+typedef v3_base_object_t* (*v3_func_pt)(v3_ctx_t *ctx);
 
 struct v3_function_object_s {
     v3_object_t         base;
@@ -24,7 +24,8 @@ struct v3_function_object_s {
     v3_number_object_t  *length;    // args count
     unsigned int        is_native;
     v3_func_pt          native_func;
-    v3_list_t           *scope;
+    v3_list_t           *scopes;
+    v3_function_node_t  *node;
     // v3_function_block_t function;
 };
 

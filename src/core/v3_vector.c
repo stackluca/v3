@@ -7,7 +7,7 @@ void* v3_vector_new(v3_options_t *options, size_t itemSize, unsigned int capacit
         return NULL;
     }
 
-    vector->base.type = V3_DATA_VECTOR;
+    vector->base.type = V3_DATA_TYPE_VECTOR;
 
     vector->items = v3_alloc(options, itemSize * capacity);
     if (vector->items == NULL) {

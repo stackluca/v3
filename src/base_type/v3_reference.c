@@ -1,10 +1,11 @@
 #include <v3_core.h>
 #include <v3_reference.h>
+#include "../v3_exception.h"
 
 void v3_ref_init(v3_reference_t *ref)
 {
     ref->base.type = V3_DATA_TYPE_REF;
-    ref->value = &v3_null;
+    ref->scope = (v3_base_object_t *)&v3_null;
     ref->name = NULL;
 }
 
@@ -27,12 +28,12 @@ v3_base_object_t *v3_ref_get_value(v3_ctx_t *ctx, v3_base_object_t *aref)
     v3_base_object_t    *scope;
     v3_reference_t      *ref;
 
-    if (aref->base.type != V3_DATA_TYPE_REF) return ref;
+    if (aref->type != V3_DATA_TYPE_REF) return aref;
 
     ref = (v3_reference_t *)aref;
     scope = ref->scope;
 
-    if (scope == &v3_null) {
+    if (scope == (v3_base_object_t *)&v3_null) {
         // return ReferenceError(ctx);
         v3_set_error(ctx, v3_ReferenceError);
         return NULL;
@@ -46,7 +47,7 @@ v3_base_object_t *v3_ref_put_value(v3_ctx_t *ctx, v3_base_object_t *aref, v3_bas
     v3_base_object_t    *scope;
     v3_reference_t      *ref;
 
-    if (aref->base.type != V3_DATA_TYPE_REF) {
+    if (aref->type != V3_DATA_TYPE_REF) {
         v3_set_error(ctx, v3_ReferenceError);
         return NULL;
     }
@@ -54,8 +55,8 @@ v3_base_object_t *v3_ref_put_value(v3_ctx_t *ctx, v3_base_object_t *aref, v3_bas
     ref = (v3_reference_t *)aref;
     scope = ref->scope;
 
-    if (scope == &v3_null) {
-        v3_object_set(ctx->globals, ref->name, value);
+    if (scope == (v3_base_object_t *)&v3_null) {
+        v3_object_set(ctx->global, ref->name, value);
     } 
     
     return v3_find_property(scope, ref->name);

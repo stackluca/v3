@@ -65,4 +65,30 @@ v3_object_get_by_str(v3_object_t* obj, const char *key, size_t len)
     return v3_dict_get(obj->__attrs__, key, len);
 }
 
-#define V3_OBJ_GET(obj, _str) v3_object_get_by_str(obj, str, sizeof(_str)-1)
+v3_base_object_t *
+v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
+{
+    v3_object_t         *prototype, *object;
+    v3_base_object_t    *ret;
+    if (owner->type == V3_DATA_TYPE_OBJECT
+        || owner->type == V3_DATA_TYPE_FUNCTION) {
+        object = (v3_object_t *)owner;
+
+        ret = v3_object_get(object, key);
+        if (ret != NULL) return ret;
+
+        prototype = (v3_object_t *)v3_object_prototype(object);
+        if (prototype != NULL) {
+            //ret = v3_object_get(prototype, key);
+            ret = v3_find_property((v3_base_object_t *)prototype, key);
+            if (ret != NULL) return ret;
+        }
+
+        return v3_find_property((v3_base_object_t *)object->base.__proto__, key);
+        // ret = v3_object_get(object->base.__proto__, key);
+        // return ret;
+    } else {
+        ret = v3_find_property((v3_base_object_t *)owner->__proto__, key);
+        return ret;
+    }
+}

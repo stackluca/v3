@@ -185,6 +185,8 @@ struct v3_function_node_s {
     v3_node_t               node;
     v3_idetifier_t          *id;
     v3_vector_t             *params;
+    v3_vector_t             *func_decs;
+    v3_vector_t             *var_decs;
     v3_block_statement_t    *body;
     //v3_list_t               *scope_chain;
 };
@@ -224,7 +226,7 @@ struct v3_ctx_s {
     v3_options_t        *options;
     v3_object_t         *global;
     const char          *err;
-    v3_error_object_t   *err_obj;
+    v3_object_t         *error;
     v3_tokenizer_state_t    state;
     v3_reference_t      ret;
     v3_frame_t          *frame;
