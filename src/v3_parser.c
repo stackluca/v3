@@ -240,15 +240,12 @@ parse_function_declaration(v3_ctx_t *ctx, v3_node_t **node)
     v3_block_statement_t    *block;
     v3_int_t                rc;
 
-    rc = expect_keyword(ctx, V3_KEYWORD_FUNCTION);
-    if (rc != V3_OK) return rc;
+    CHECK_FCT(expect_keyword(ctx, V3_KEYWORD_FUNCTION));
 
-    rc = parse_variable_identifier(ctx, &id);
-    if (rc != V3_OK) return rc;
+    CHECK_FCT(parse_variable_identifier(ctx, &id));
 
     // TODO:
-    params = NULL;
-    // rc = parse_params();
+    CHECK_FCT(parse_params(ctx, &params));
 
     rc = parse_function_source_elements(ctx, &block);
 
@@ -256,6 +253,30 @@ parse_function_declaration(v3_ctx_t *ctx, v3_node_t **node)
     *node = (v3_node_t *)v3_create_function_node(ctx, id, params, block, V3_SYNTAX_FUNCTION_DECLARATION);
 
     return *node == NULL ? V3_ERROR : V3_OK;
+}
+
+static v3_int_t 
+parse_params(v3_ctx_t *ctx, v3_vector_t **params)
+{
+    v3_node_t       **source_element;   
+    v3_vector_t     *body;
+    v3_vector_t     *labels;
+
+
+    //v3_block_statement_t    *block;
+    CHECK_FCT(expect(ctx, "(", 1));
+
+    if (match(")")) {
+        *params = v3_vector_new(ctx->options, sizeof(void *), 5);
+        if (params == NULL) return V3_ERROR;
+        while (ctx->tokenizer->index < ctx->tokenizer->source.length) {
+            parse 
+        }
+    }
+
+    CHECK_FCT(expect(ctx, ")", 1));
+
+    return V3_OK;
 }
 
 static v3_int_t 

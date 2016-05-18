@@ -95,12 +95,20 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
         return V3_OK;
     }
 
-    if (ret != (v3_base_object_t *)&v3_null) {
+    if (ret->type == V3_DATA_TYPE_STATMENT_RESULT) {
+        printf("undefined\n");
+    } else if (ret != (v3_base_object_t *)&v3_null) {
+        ret = v3_get_value(ctx, ret);
+        if (ret == NULL) {
+            printf("Error occured\n");
+            return V3_OK;
+            // show error
+        }
         owner = ret;
         ret = v3_find_property(ret, v3_strobj("toString"));
         if (ret->type == V3_DATA_TYPE_FUNCTION) {
             func = (v3_function_object_t *)ret;
-            ret = v3_function_apply(ctx, func, owner, NULL);
+            ret = v3_function_call(ctx, func, owner, NULL);
             if (ret->type == V3_DATA_TYPE_STRING) {
                 str = (v3_string_object_t *)ret;
                 memcpy(buf, str->value.data, str->value.length);
@@ -131,8 +139,9 @@ v3_program_eval(v3_ctx_t *ctx, v3_node_t *anode)
 
     v3_list_prepend(frame.scopes, ctx->global);
 
-    frame.this   = NULL;
+    frame.this   = to_base(&v3_null);
     frame.prev   = NULL;
+    ctx->frame  = &frame;
 
     nodes = program->body->items;
 
@@ -180,6 +189,7 @@ v3_variable_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
     size_t                      i;
     v3_base_object_t            *ret;
     v3_variable_declarator_t    **dec;
+    v3_statement_result_t       *result;
 
     statement = (v3_variable_statement_t *)node;
 
@@ -192,7 +202,8 @@ v3_variable_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
         if (ret == NULL) return NULL;
     }
 
-    return ret;
+    result = v3_statement_result_create(ctx, V3_RESULT_NORMAL, NULL, NULL);
+    return to_base(result);
 }
 
 v3_base_object_t * 
@@ -284,7 +295,7 @@ v3_identifier_eval(v3_ctx_t *ctx, v3_node_t *node)
     ident = (v3_idetifier_t *)node;
 
     for (part = ctx->frame->scopes->elts; part != NULL; part = part->next) {
-        scope = (v3_object_t *)part;
+        scope = (v3_object_t *)part->value;
         value = v3_object_get_by_str(scope, ident->name.data, ident->name.length); 
         if (value != NULL) {
             // ctx->ret.value = v3_ref_create(ctx, ident->name, (v3_base_object_t*)scope);
@@ -427,26 +438,28 @@ v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *th
     v3_object_t                 *activation;
     v3_base_object_t            *ret;
 
-    activation = v3_function_build_activation(ctx, func, arg_values);
-    // frame.call_obj = v3_object_clone(func_obj->call_obj);
-    // TODO: create argument objct by arguments
-    // v3_object_set(frame.call_obj, v3_str2string("arguments"), arg_obj);
-    v3_list_prepend(func->scopes, activation);
-    frame.scopes = func->scopes;
-    frame.call_obj = activation;
-
-    v3_frame_push(ctx, &frame);
 
     if (func->is_native) {
+        ctx->frame->this = this;
         ret = func->native_func(ctx);
     } else {
+        frame.this = this;
+        activation = v3_function_build_activation(ctx, func, arg_values);
+        // frame.call_obj = v3_object_clone(func_obj->call_obj);
+        // TODO: create argument objct by arguments
+        // v3_object_set(frame.call_obj, v3_str2string("arguments"), arg_obj);
+        v3_list_prepend(func->scopes, activation);
+        frame.scopes = func->scopes;
+        frame.call_obj = activation;
+
+        v3_frame_push(ctx, &frame);
         ret = v3_block_statement_eval(ctx, (v3_node_t *)func->node->body);
+        v3_list_pop(func->scopes);
+
+        // restore prev frame;
+        v3_frame_pop(ctx);
     }
 
-    v3_list_pop(func->scopes);
-
-    // restore prev frame;
-    v3_frame_pop(ctx);
     return ret;
 }
 
@@ -558,4 +571,19 @@ v3_reverse_block_do(v3_ctx_t *ctx, v3_block_statement_t * block, v3_node_do_pt h
     }
 
     return V3_OK;
+}
+
+v3_statement_result_t *v3_statement_result_create(v3_ctx_t *ctx, int type, v3_base_object_t *value, v3_base_object_t *label)
+{
+    v3_statement_result_t *result;
+
+    result = v3_palloc(ctx->pool, sizeof(*result));
+    result->base.type = V3_DATA_TYPE_STATMENT_RESULT;
+    result->base.ref_count = 0;
+    result->base.__proto__ = NULL;
+
+    result->type = type;
+    result->value = value;
+    result->label = label;
+    return result;
 }

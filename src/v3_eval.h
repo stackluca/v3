@@ -1,6 +1,7 @@
 #ifndef _V3_EVAL_H
 #define _V3_EVAL_H 
 
+
 typedef v3_base_object_t *(*v3_eval_pt)(v3_ctx_t *ctx, v3_node_t *node);
 typedef v3_int_t (*v3_node_do_pt)(v3_ctx_t *ctx, v3_node_t *node, void *userdata);
 
@@ -20,4 +21,5 @@ v3_base_object_t *v3_block_statement_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_base_object_t *v3_function_declaration_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_base_object_t *v3_function_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_int_t v3_reverse_block_do(v3_ctx_t *ctx, v3_block_statement_t * block, v3_node_do_pt handler, void *userdata);
+v3_statement_result_t *v3_statement_result_create(v3_ctx_t *ctx, int type, v3_base_object_t *value, v3_base_object_t *label);
 #endif

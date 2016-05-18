@@ -4,4 +4,5 @@
 #include <v3_core.h>
 #include <v3_base_type.h>
 
+#define to_base(value) (v3_base_object_t *)(value)
 #endif

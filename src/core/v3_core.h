@@ -132,6 +132,19 @@ typedef struct {
     v3_vector_t *declarations; 
 } v3_variable_statement_t;
 
+
+
+typedef struct {
+    v3_base_object_t    base;
+enum {
+    V3_RESULT_NORMAL = 0,
+    V3_RESULT_RETURN = 1,
+    V3_RESULT_CONTINUE = 2,
+    V3_RESULT_BREAK = 3,
+} type;
+    v3_base_object_t    *value;
+    v3_base_object_t    *label;
+} v3_statement_result_t;
 // foo
 typedef struct {
     v3_node_t   node;
@@ -216,7 +229,7 @@ struct v3_frame_s {
     v3_object_t     *global;
     v3_list_t       *scopes;    /** scope chain */
     v3_object_t     *call_obj; /** the top scope of scopes */
-    v3_object_t     *this;      
+    v3_base_object_t     *this;      
     v3_frame_t      *prev;
 };
 

@@ -57,8 +57,10 @@ v3_base_object_t *v3_ref_put_value(v3_ctx_t *ctx, v3_base_object_t *aref, v3_bas
 
     if (scope == (v3_base_object_t *)&v3_null) {
         v3_object_set(ctx->global, ref->name, value);
-    } 
-    
-    return v3_find_property(scope, ref->name);
+    } else {
+        v3_object_set(to_obj(scope), ref->name, value);
+    }
+
+    return value;
 }
 

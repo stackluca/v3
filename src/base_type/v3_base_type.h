@@ -11,6 +11,7 @@ typedef enum {
     V3_DATA_TYPE_UNDEFINED = 6,
     V3_DATA_TYPE_VECTOR = 7,
     V3_DATA_TYPE_REF = 8,
+    V3_DATA_TYPE_STATMENT_RESULT = 9,
 } v3_data_type;
 
 typedef struct v3_base_object_s v3_base_object_t;

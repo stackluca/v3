@@ -5,8 +5,8 @@
 static v3_int_t v3_init_Number_prototype(v3_ctx_t *ctx);
 static v3_base_object_t *parseInt(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
 static v3_base_object_t *
-v3_Number_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
-static v3_base_object_t *toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
+v3_Number_construct(v3_ctx_t *ctx);
+static v3_base_object_t *toString(v3_ctx_t *ctx);
 
 v3_object_t                     *Number_prototype;
 // static v3_number_object_t       NaN;
@@ -40,12 +40,12 @@ v3_int_t v3_init_Number(v3_ctx_t *ctx)
 }
 
 static v3_base_object_t *
-v3_Number_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+v3_Number_construct(v3_ctx_t *ctx)
 {
     v3_number_object_t  *num;
     v3_object_t         *wrapper = NULL;
 
-    if (this != NULL) wrapper = (v3_object_t *)this; /* by new operator */
+    if (ctx->frame->this != NULL) wrapper = (v3_object_t *)ctx->frame->this; /* by new operator */
 
     num = v3_numobj(0);
 #if 0
@@ -58,7 +58,7 @@ v3_Number_construct(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
     if (wrapper == NULL) {
         return (v3_base_object_t *)num;
     } else {
-        v3_obj_set(this, v3_strobj("prototype"), Number_prototype);
+        v3_obj_set(ctx->frame->this, v3_strobj("prototype"), Number_prototype);
         wrapper->wrappered_value = (v3_base_object_t *)num;
         return (v3_base_object_t *)wrapper;
     }
@@ -79,7 +79,7 @@ static v3_int_t v3_init_Number_prototype(v3_ctx_t *ctx)
     return V3_OK;
 }
 
-static v3_base_object_t *toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+static v3_base_object_t *toString(v3_ctx_t *ctx)
 {
     v3_number_object_t  *num;
     //v3_string_object_t  *str;
@@ -89,8 +89,8 @@ static v3_base_object_t *toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_argu
     // if (this == NULL) return v3_type_error(ctx, v3_err_cant_convert_undefined_to_obj);
     // if (this->type != V3_TYPE_NUMBER) return v3_type_error(ctx, v3_err_incompatible_object);
     
-    assert(this->type == V3_DATA_TYPE_NUMBER);
-    num = (v3_number_object_t *)this;
+    assert(ctx->frame->this->type == V3_DATA_TYPE_NUMBER);
+    num = (v3_number_object_t *)ctx->frame->this;
     buf = v3_palloc(ctx->pool, 20);
     len = snprintf(buf, 20, "%f", num->value);
     buf[len] = '\0';
