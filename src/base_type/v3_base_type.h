@@ -14,6 +14,18 @@ typedef enum {
     V3_DATA_TYPE_STATMENT_RESULT = 9,
 } v3_data_type;
 
+#define v3_is_base_type(value)  \
+   ((value)->type == V3_DATA_TYPE_BOOL \
+    || (value)->type == V3_DATA_TYPE_NUMBER \
+    || (value)->type == V3_DATA_TYPE_NULL \
+    || (value)->type == V3_DATA_TYPE_UNDEFINED \
+    || (value)->type == V3_DATA_TYPE_STRING)
+
+#define v3_is_js_type(value)  \
+    (v3_is_base_type(value)  \
+        || value->type == V3_DATA_TYPE_OBJECT \
+        || value->type == V3_DATA_TYPE_FUNCTION)
+
 typedef struct v3_base_object_s v3_base_object_t;
 typedef struct v3_number_object_s v3_number_object_t;
 typedef struct v3_string_object_s v3_string_object_t;

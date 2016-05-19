@@ -3,6 +3,9 @@
 
 #include <v3_core.h>
 
+#define CURRENT_CHAR tokenizer->source.data[tokenizer->index]
+#define NEXT_CHAR tokenizer->source.data[tokenizer->index + 1]
+#define NEXT_NEXT_CHAR tokenizer->source.data[tokenizer->index + 2]
 
 typedef enum {
     V3_TOKEN_BooleanLiteral = 1,
@@ -19,6 +22,7 @@ typedef enum {
 typedef struct {
     v3_tokentype_t  type;
     v3_str_t        value;
+    v3_int_t        prec;
     unsigned int    lineNumber;
     unsigned int    lineStart;
     unsigned int    start;
@@ -62,4 +66,5 @@ extern void peek(v3_tokenizer_t *tokenizer);
 extern int lex(v3_tokenizer_t *tokenizer, v3_token_t **atoken);
 extern int skipComment(v3_tokenizer_t *tokenizer);
 extern v3_int_t v3_tokenizer_init(v3_tokenizer_t *tokenizer, v3_options_t *options, const char* code, int length);
+int isIdentifierStart(char ch);
 #endif // _v3_prima_h_

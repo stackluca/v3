@@ -14,6 +14,7 @@ extern v3_object_t  *Number_prototype;
 extern v3_int_t v3_init_Number(v3_ctx_t *ctx);
 extern v3_number_object_t *v3_number_create(v3_ctx_t *ctx, double num);
 extern v3_number_object_t v3_number_pool[];
+extern v3_number_object_t       *v3_NaN;
 
 static inline void v3_number_init(v3_ctx_t *ctx, v3_number_object_t *num)
 {
@@ -25,4 +26,5 @@ static inline void v3_number_init(v3_ctx_t *ctx, v3_number_object_t *num)
 
 #define v3_numobj(num) v3_number_create(ctx, num)
 
+#define to_number(value) ((v3_number_object_t *)(value))
 #endif

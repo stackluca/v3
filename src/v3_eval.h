@@ -22,4 +22,5 @@ v3_base_object_t *v3_function_declaration_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_base_object_t *v3_function_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_int_t v3_reverse_block_do(v3_ctx_t *ctx, v3_block_statement_t * block, v3_node_do_pt handler, void *userdata);
 v3_statement_result_t *v3_statement_result_create(v3_ctx_t *ctx, int type, v3_base_object_t *value, v3_base_object_t *label);
+v3_base_object_t * v3_binary_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 #endif

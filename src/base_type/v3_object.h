@@ -10,7 +10,7 @@ extern v3_object_t  *Object_prototype;
 #define INTER_CLASS     "[[CLASS]]"
 #define INTER_CALL     "[[CALL]]"
 
-#define to_obj(value) (v3_object_t *)value
+#define to_obj(value) ((v3_object_t *)(value))
 
 struct v3_object_s {
     v3_base_object_t    base; 

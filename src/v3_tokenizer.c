@@ -4,10 +4,6 @@
 #include <v3_core.h>
 #include "v3_tokenizer.h"
 
-#define CURRENT_CHAR tokenizer->source.data[tokenizer->index]
-#define NEXT_CHAR tokenizer->source.data[tokenizer->index + 1]
-#define NEXT_NEXT_CHAR tokenizer->source.data[tokenizer->index + 2]
-
 static v3_token_t *advance(v3_tokenizer_t *tokenizer);
 // static int collectToken(v3_tokenizer_t *tokenizer);
 static int isDecimalDigit(char ch);
@@ -15,7 +11,6 @@ static int isHexDigit(char ch);
 // static int isWhiteSpace(char ch);
 static int isWhiteSpace(int ch);
 static int isOctalDigit(char ch);
-static int isIdentifierStart(char ch);
 static int isIdentifierPart(char ch);
 // static int isImplicitOctalLiteral(v3_tokenizer_t *tokenizer);
 static int isLineTerminator(char ch);
@@ -893,7 +888,7 @@ static int isLineTerminator(char ch)
     return (ch == 0x0A) || (ch == 0x0D);// || (ch == 0x2028) || (ch == 0x2029);
 }
 
-static int isIdentifierStart(char ch) {
+int isIdentifierStart(char ch) {
     return (ch == 0x24) || (ch == 0x5F) ||  // $ (dollar) and _ (underscore)
          (ch >= 0x41 && ch <= 0x5A) ||         // A..Z
          (ch >= 0x61 && ch <= 0x7A) ||         // a..z

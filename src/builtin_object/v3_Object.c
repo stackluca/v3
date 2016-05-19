@@ -4,10 +4,8 @@
 v3_object_t             *Object_prototype;
 
 static v3_int_t v3_init_object_prototype(v3_ctx_t *ctx);
-static v3_base_object_t *
-Object(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
-static v3_base_object_t 
-*toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args);
+static v3_base_object_t * Object(v3_ctx_t *ctx);
+static v3_base_object_t *toString(v3_ctx_t *ctx);
 
 v3_int_t v3_init_Object(v3_ctx_t *ctx)
 {
@@ -48,14 +46,14 @@ static v3_int_t v3_init_object_prototype(v3_ctx_t *ctx)
 }
 
 static v3_base_object_t *
-Object(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+Object(v3_ctx_t *ctx)
 {
-    v3_obj_set(this, v3_strobj("prototype"), Object_prototype);
-    return this;
+    v3_obj_set(ctx->frame->this, v3_strobj("prototype"), Object_prototype);
+    return ctx->frame->this;
 }
 
 static v3_base_object_t 
-*toString(v3_ctx_t *ctx, v3_base_object_t *this, v3_arguments_t *args)
+*toString(v3_ctx_t *ctx)
 {
     return (v3_base_object_t *)v3_strobj("Object");
 }

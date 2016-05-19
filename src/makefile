@@ -19,6 +19,7 @@ base_type/v3_number_object.h \
 base_type/v3_object.h \
 base_type/v3_string_object.h \
 base_type/v3_reference.h \
+base_type/v3_conversion.h \
 core/v3_core.h \
 core/v3_dict.h \
 core/v3_pool.h \
@@ -41,6 +42,7 @@ base_type/v3_null.o \
 base_type/v3_undefined.o \
 base_type/v3_bool.o \
 base_type/v3_reference.o \
+base_type/v3_conversion.o \
 builtin_object/v3_Error.o \
 builtin_object/v3_TypeError.o \
 builtin_object/v3_Function.o \

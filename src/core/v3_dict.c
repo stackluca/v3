@@ -95,3 +95,25 @@ static v3_int_t hash(const char *key, size_t len)
 
     return hash_code;
 }
+
+v3_vector_t *v3_dict_keys(v3_ctx_t *ctx, v3_dict_t *dict)
+{
+    v3_vector_t         *keys;
+    v3_str_t            **key;
+    v3_dict_bucket_t    *bucket;
+    v3_dict_slot_t      *slot;
+    size_t              i;
+
+    keys = v3_vector_new(ctx->options, sizeof(void *), 10);
+
+
+    for (i = 0; i < dict->capacity; i++) {
+        bucket = &dict->buckets[i];
+        for (slot = bucket->head; slot != NULL; slot = slot->next) {
+            key = v3_vector_push(ctx->options, keys);
+            *key = &slot->key;
+        }
+    }
+    
+    return keys;
+}

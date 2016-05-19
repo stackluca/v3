@@ -9,6 +9,8 @@ v3_list_t *v3_list_create(v3_pool_t *pool)
     list->pool = pool;
     list->nelts = 0;
     list->elts = NULL;
+
+    return list;
 }
 
 v3_int_t v3_list_prepend(v3_list_t *list, void *value)
@@ -35,13 +37,13 @@ void v3_list_pop(v3_list_t *list)
 
 v3_list_t *v3_list_clone(v3_ctx_t *ctx, v3_list_t *src)
 {
-    v3_list_t   *dst;
+    v3_list_t       *dst;
     v3_list_part_t  *part;
     dst = v3_list_create(ctx->pool);
     if (dst == NULL) return NULL;
 
     for (part = src->elts; part != NULL; part = part->next) {
-        CHECK_FCT(v3_list_prepend(dst, part->value));
+        CHECK_FCT2(v3_list_prepend(dst, part->value), NULL);
     }
 
     return dst;

@@ -40,7 +40,7 @@ static v3_int_t v3_init_Function_prototype(v3_ctx_t *ctx)
     Function_prototype = v3_object_create(ctx, 5);
     if (Function_prototype == NULL) return V3_ERROR;
 
-    // v3_object_set(ctx, Number_prototype, "toString", to_string);
+    // v3_object_set(ctx, Function_prototype, "toString", to_string);
     //v3_object_set(Number_prototype, "toFixed", v3_number_toFixed);
     //number_prototype.__proto__ = Object_prototype;
     return V3_OK;

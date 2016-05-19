@@ -8,4 +8,6 @@ typedef struct {
 
 extern v3_bool_object_t v3_bool_true;
 extern v3_bool_object_t v3_bool_false;
+
+#define to_bool(value) ((v3_bool_object_t *)(value))
 #endif

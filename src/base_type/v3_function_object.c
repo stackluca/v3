@@ -63,7 +63,7 @@ v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *func_node, v3_list_t *s
 
     // TODO: add func_decs;
 
-    func_obj->scopes = v3_list_clone(ctx->frame->scopes);
+    func_obj->scopes = v3_list_clone(ctx, ctx->frame->scopes);
 
     return func_obj;
 }

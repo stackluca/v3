@@ -4,14 +4,15 @@
 #include "v3_exception.h"
 #include <assert.h>
 
-#define V3_EVAL_NODE(node) \
-    v3_evaleators[((v3_node_t *)(node))->type](ctx, node)
+
 #define V3_SET_RETURN(_name, _value) \
     ctx->ret.name = (_name); \
     ctx->ret.value = (v3_base_object_t *)(_value)
 // static v3_object_t v3_global;
 #define v3_get_value v3_ref_get_value
+#define to_result(value) ((v3_statement_result_t *)(value))
 
+static char *to_cstr(char *buf, const char *value, size_t len);
 static v3_object_t *
 v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values);
 static v3_base_object_t *
@@ -20,10 +21,12 @@ static v3_base_object_t *
 v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arg_values);
 static v3_vector_t *v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params);
 static v3_object_t *v3_arguments_object_create(v3_ctx_t *ctx, v3_vector_t *arg_values);
+v3_base_object_t *v3_return_statement_eval(v3_ctx_t *ctx, v3_node_t *node);
 
 extern v3_int_t v3_init_Function(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Object(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Number(v3_ctx_t *ctx);
+v3_base_object_t *v3_operator_addition(v3_ctx_t *ctx, v3_node_t *left, v3_node_t *right);
 
 // typedef void (*v3_disp_result_pt)(v3_ctx_t *ctx, v3_base_object_t *value);
 
@@ -41,7 +44,15 @@ v3_eval_pt v3_evaleators[] = {
     v3_new_expr_eval,     // V3_SYNTAX_NEW_EXPR = 10,   // 
     v3_block_statement_eval,
     v3_function_declaration_eval, 
+    NULL, // function expression
+    v3_return_statement_eval, 
+    v3_binary_expr_eval, 
 };
+
+    //{assert(((v3_node_t *)(node))->type < sizeof(v3_evaleators) / sizeof(v3_evaleators[0])); 
+    //assert(v3_evaleators[((v3_node_t *)(node))->type] != NULL); 
+
+#define V3_EVAL_NODE(node) v3_evaleators[((v3_node_t *)(node))->type](ctx, node) 
 
 
 v3_int_t v3_init_global(v3_ctx_t *ctx)
@@ -58,6 +69,8 @@ v3_int_t v3_init_global(v3_ctx_t *ctx)
 
     ctx->global = global;
 
+    CHECK_FCT(v3_object_set(global, v3_strobj("global"), to_base(global)));
+
     // builtin
     v3_init_Function(ctx);
     v3_init_Object(ctx);
@@ -66,11 +79,28 @@ v3_int_t v3_init_global(v3_ctx_t *ctx)
     return V3_OK;
 }
 
+void v3_show_err(v3_ctx_t *ctx, v3_int_t err_code)
+{
+    char                    buf[1024];
+    if (err_code != 0) {
+        printf(" error_code:%d", err_code);
+    }
+
+    if (ctx->err != NULL) {
+        printf(" %s", ctx->err);
+    }
+
+    printf(" index:%d, token:", ctx->tokenizer.index);
+    to_cstr(buf, c_lookahead->value.data, c_lookahead->value.length);
+
+    printf("%s \n", buf);
+}
+
 v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
 {
     v3_int_t            rc;
     v3_program_node_t   *program;
-    size_t              len;
+    size_t              len, i;
     v3_base_object_t        *ret, *owner;
     v3_string_object_t      *str;
     char                    buf[1024];
@@ -79,41 +109,52 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
     len = strlen(code);
     rc = v3_parse(ctx, code, len, &program);
     if (rc != V3_OK) {
-        if (ctx->err != NULL) {
-            printf("%s", ctx->err);
-            ctx->err = NULL;
-        } else {
-            printf("Unkown error %d", rc);
-        }
-        printf(" \n");
+        v3_show_err(ctx, rc);
+        ctx->err = NULL;
+        ctx->error = NULL;
         return rc;
     }
 
     ret = v3_program_eval(ctx, (v3_node_t *)program);
     if (ret == NULL) {
-        printf("an error occured\n");
+        v3_show_err(ctx, 0);
         return V3_OK;
     }
 
-    if (ret->type == V3_DATA_TYPE_STATMENT_RESULT) {
+    if (ret->type == V3_DATA_TYPE_STATMENT_RESULT
+        || ret->type == V3_DATA_TYPE_UNDEFINED) {
         printf("undefined\n");
     } else if (ret != (v3_base_object_t *)&v3_null) {
         ret = v3_get_value(ctx, ret);
         if (ret == NULL) {
-            printf("Error occured\n");
+            v3_show_err(ctx, 0);
             return V3_OK;
-            // show error
-        }
-        owner = ret;
-        ret = v3_find_property(ret, v3_strobj("toString"));
-        if (ret->type == V3_DATA_TYPE_FUNCTION) {
-            func = (v3_function_object_t *)ret;
-            ret = v3_function_call(ctx, func, owner, NULL);
-            if (ret->type == V3_DATA_TYPE_STRING) {
-                str = (v3_string_object_t *)ret;
-                memcpy(buf, str->value.data, str->value.length);
-                buf[str->value.length] = '\0';
+        } else if (ret->type == V3_DATA_TYPE_FUNCTION) { 
+            printf("function ");
+            to_cstr(buf, to_func(ret)->name->value.data, to_func(ret)->name->value.length);
+            printf("%s()\n", buf);
+            return V3_OK;
+        } else if(ret->type == V3_DATA_TYPE_OBJECT) {
+            v3_vector_t *keys;
+            v3_str_t    **key;
+            keys = v3_dict_keys(ctx, to_obj(ret)->__attrs__);
+            key = keys->items;
+            for (i = 0; i < keys->length; i++) {
+                to_cstr(buf, key[i]->data, key[i]->length);
                 printf("%s\n", buf);
+            }
+        } else {
+            owner = ret;
+            ret = v3_find_property(ret, v3_strobj("toString"));
+            if (ret->type == V3_DATA_TYPE_FUNCTION) {
+                func = (v3_function_object_t *)ret;
+                ret = v3_function_call(ctx, func, owner, NULL);
+                if (ret->type == V3_DATA_TYPE_STRING) {
+                    str = (v3_string_object_t *)ret;
+                    memcpy(buf, str->value.data, str->value.length);
+                    buf[str->value.length] = '\0';
+                    printf("%s\n", buf);
+                }
             }
         }
     } else {
@@ -122,6 +163,14 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
 
     return V3_OK;
 }
+
+static char *to_cstr(char *buf, const char *value, size_t len)
+{
+    memcpy(buf, value, len);
+    buf[len] = '\0';
+    return buf + len;
+}
+
 
 v3_base_object_t * 
 v3_program_eval(v3_ctx_t *ctx, v3_node_t *anode)
@@ -172,7 +221,7 @@ v3_new_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     ret = v3_ref_get_value(ctx, ret);
     if (ret == NULL) return NULL;
     if (ret->type != V3_DATA_TYPE_FUNCTION) {
-        v3_set_error(ctx, v3_SyntaxError);
+        v3_set_error(ctx, v3_SyntaxError, "new exprssion need a function");
         return NULL;
     }
     func_obj = (v3_function_object_t *)ret;
@@ -223,7 +272,7 @@ v3_function_declaration_eval(v3_ctx_t *ctx, v3_node_t *node)
                             func_node->id->name.length, 
                             (v3_base_object_t *)func_obj);
 
-    return (v3_base_object_t *)func_obj;
+    return (v3_base_object_t *)v3_statement_result_create(ctx, V3_RESULT_NORMAL, NULL, NULL);
 }
 
 v3_base_object_t * 
@@ -319,8 +368,6 @@ v3_expr_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
     return v3_evaleators[expr->expr->type](ctx, node);
 }
 
-
-
 static v3_vector_t *
 v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params)
 {
@@ -369,7 +416,7 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     if (ret == NULL) return NULL;
 
     if (ret->type != V3_DATA_TYPE_FUNCTION) {
-        v3_set_error(ctx, v3_TypeError); 
+        v3_set_error(ctx, v3_TypeError, "call exprssion need a function"); 
         return NULL;
     }
 
@@ -399,26 +446,63 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 }
 
 v3_base_object_t *
+v3_return_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+    v3_return_statement_t    *return_stmt;
+    v3_base_object_t        *ret;
+    v3_statement_result_t   *result;
+
+    assert(node->type == V3_SYNTAX_RETURN_STATEMENT);
+    return_stmt = (v3_return_statement_t *)node;
+    result = v3_statement_result_create(ctx, V3_RESULT_RETURN, NULL, NULL);
+
+    if (return_stmt->argument == NULL) {
+        result->value = to_base(&v3_undefined);     
+        return to_base(result);
+    }
+
+    assert(is_expr(return_stmt->argument));
+
+    ret = v3_evaleators[return_stmt->argument->type](ctx, return_stmt->argument);
+    result->value = v3_get_value(ctx, ret);
+
+    return to_base(result);
+}
+
+v3_base_object_t *
 v3_block_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_block_statement_t    *block;
     size_t                  i;
     v3_base_object_t        *ret;
     v3_node_t               **item;
+    v3_statement_result_t   *result;
 
     assert(node->type == V3_SYNTAX_BLOCK_STATEMENT);
     block = (v3_block_statement_t *)node;
+    result = v3_statement_result_create(ctx, V3_RESULT_NORMAL, NULL, NULL);
 
     item = block->body->items;
+
     for (i = 0; i < block->body->length; i++) {
         // node = items[i];
-        ret = v3_evaleators[item[i]->type](ctx, item[i]);
+        ret = V3_EVAL_NODE(item[i]);
+        if (ret == NULL) {
+            result->type = V3_RESULT_THROW;
+            result->value = to_base(ctx->error);
+        }
+
+        if (ret->type == V3_DATA_TYPE_STATMENT_RESULT
+            && to_result(ret)->type == V3_RESULT_RETURN) {
+            return ret; 
+        }
+
         if (item[i]->type == V3_SYNTAX_RETURN_STATEMENT) {
             return ret;
         }
     }
 
-    return ret;
+    return to_base(result);
 }
 
 
@@ -437,11 +521,12 @@ v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *th
     v3_frame_t                  frame;
     v3_object_t                 *activation;
     v3_base_object_t            *ret;
-
+    v3_statement_result_t       *result;
 
     if (func->is_native) {
         ctx->frame->this = this;
         ret = func->native_func(ctx);
+        return ret;
     } else {
         frame.this = this;
         activation = v3_function_build_activation(ctx, func, arg_values);
@@ -453,14 +538,23 @@ v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *th
         frame.call_obj = activation;
 
         v3_frame_push(ctx, &frame);
-        ret = v3_block_statement_eval(ctx, (v3_node_t *)func->node->body);
+        result  = (v3_statement_result_t *)v3_block_statement_eval(ctx, (v3_node_t *)func->node->body);
         v3_list_pop(func->scopes);
 
         // restore prev frame;
         v3_frame_pop(ctx);
     }
 
-    return ret;
+    if (result->type == V3_RESULT_THROW) {
+        return NULL;
+    }
+
+    if (result->type == V3_RESULT_RETURN) {
+        return result->value;
+    }
+
+    assert(result->type == V3_RESULT_NORMAL);
+    return to_base(&v3_undefined);
 }
 
 static v3_object_t *
@@ -472,13 +566,15 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vecto
     size_t                      i;
     v3_function_node_t          *func_node;
     v3_base_object_t            **values;
-    v3_string_object_t          **para_names;
+    v3_idetifier_t              **ids;
 
     func_node = func->node;
 
-    activation = v3_object_create(ctx, func_node->params->length 
-                                        + func_node->func_decs->length 
-                                        + func_node->var_decs->length);
+    // activation = v3_object_create(ctx, func_node->params->length 
+                                        //+ func_node->func_decs->length 
+                                        //+ func_node->var_decs->length);
+    activation = v3_object_create(ctx, 10);
+
     /*---- set activation  */
     // set argumetns
     arg_obj = v3_arguments_object_create(ctx, arg_values);
@@ -486,15 +582,19 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vecto
 
     // parameters;
     values = arg_values->items;
-    para_names = func_node->params->items;
+    ids = func_node->params->items;
     for (i = 0; i < func_node->params->length; i++) {
         if (i < arg_values->length) {
-            v3_object_set(activation, 
-                    para_names[i],
-                    values[i]);
+            //assert(ids[i]->type == V3_SYNTAX_IDENTIFIER);
+            v3_object_set_by_str(activation, 
+                            ids[i]->name.data,
+                            ids[i]->name.length,
+                            values[i]);
         } else {
-            v3_object_set(activation, para_names[i], 
-                            (v3_base_object_t *)&v3_undefined);
+            v3_object_set_by_str(activation,  
+                            ids[i]->name.data,
+                            ids[i]->name.length,
+                            to_base(&v3_undefined));
         }
     }
 
@@ -586,4 +686,65 @@ v3_statement_result_t *v3_statement_result_create(v3_ctx_t *ctx, int type, v3_ba
     result->value = value;
     result->label = label;
     return result;
+}
+
+v3_base_object_t *
+v3_binary_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+    v3_binary_expr_t    *expr;
+    assert(node->type == V3_SYNTAX_BINARY_EXPR);
+    expr = (v3_binary_expr_t *)node;
+
+
+    if (v3_str_equal(&expr->_operator, "+")) {
+        return v3_operator_addition(ctx, expr->left, expr->right);         
+    } else {
+        v3_set_error(ctx, v3_SyntaxError, "not support operator");
+        return NULL;
+    }
+}
+
+#define CHECK_FCNULL(__call__, __left__)\
+    __left__ = __call__; \
+    if (__left__ == NULL) return NULL;
+
+v3_base_object_t *
+v3_operator_addition(v3_ctx_t *ctx, v3_node_t *left, v3_node_t *right)
+{
+    v3_base_object_t    *ret, *left_result, *right_result;
+    v3_number_object_t  *left_number, *right_number;
+
+    assert(is_expr(left) && is_expr(right));
+    
+    // get left value;
+    ret = V3_EVAL_NODE(left);
+    if (ret == NULL) return NULL;
+
+    left_result = v3_get_value(ctx, ret);
+    if (left_result == NULL) return NULL;
+
+    left_result = v3_to_primitive(ctx, left_result);
+    if (left_result == NULL) return NULL;
+
+
+    ret = V3_EVAL_NODE(right);  
+    if (ret == NULL) return NULL;
+
+    right_result = v3_get_value(ctx, ret);
+    if (right_result == NULL) return NULL;
+
+    right_result = v3_to_primitive(ctx, right_result);
+    if (right_result == NULL) return NULL;
+
+
+    if (left_result->type == V3_DATA_TYPE_STRING
+        || right_result->type == V3_DATA_TYPE_STRING) {
+        v3_set_error(ctx, v3_SyntaxError, "not support string addition");
+        return NULL;
+    }
+
+    left_number = v3_to_number(ctx, left_result);    
+    right_number = v3_to_number(ctx, right_result);    
+    
+    return to_base(v3_numobj(left_number->value + right_number->value));
 }

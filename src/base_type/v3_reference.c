@@ -35,7 +35,7 @@ v3_base_object_t *v3_ref_get_value(v3_ctx_t *ctx, v3_base_object_t *aref)
 
     if (scope == (v3_base_object_t *)&v3_null) {
         // return ReferenceError(ctx);
-        v3_set_error(ctx, v3_ReferenceError);
+        v3_set_error(ctx, v3_ReferenceError, "reference error");
         return NULL;
     }
     
@@ -48,7 +48,7 @@ v3_base_object_t *v3_ref_put_value(v3_ctx_t *ctx, v3_base_object_t *aref, v3_bas
     v3_reference_t      *ref;
 
     if (aref->type != V3_DATA_TYPE_REF) {
-        v3_set_error(ctx, v3_ReferenceError);
+        v3_set_error(ctx, v3_ReferenceError, "put value expect ref");
         return NULL;
     }
 

@@ -29,6 +29,8 @@ struct v3_function_object_s {
     // v3_function_block_t function;
 };
 
+#define to_func(value) ((v3_function_object_t *)(value))
+
 extern v3_object_t             *Function_prototype;
 
 v3_function_object_t *
