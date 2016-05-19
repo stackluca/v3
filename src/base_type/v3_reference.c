@@ -35,7 +35,7 @@ v3_base_object_t *v3_ref_get_value(v3_ctx_t *ctx, v3_base_object_t *aref)
 
     if (scope == (v3_base_object_t *)&v3_null) {
         // return ReferenceError(ctx);
-        v3_set_error(ctx, v3_ReferenceError, "reference error");
+        v3_set_error(ctx, v3_ReferenceError, "reference error, scope is null");
         return NULL;
     }
     

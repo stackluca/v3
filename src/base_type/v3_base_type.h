@@ -14,7 +14,7 @@ typedef enum {
     V3_DATA_TYPE_STATMENT_RESULT = 9,
 } v3_data_type;
 
-#define v3_is_base_type(value)  \
+#define v3_is_primitive_type(value)  \
    ((value)->type == V3_DATA_TYPE_BOOL \
     || (value)->type == V3_DATA_TYPE_NUMBER \
     || (value)->type == V3_DATA_TYPE_NULL \
@@ -22,7 +22,7 @@ typedef enum {
     || (value)->type == V3_DATA_TYPE_STRING)
 
 #define v3_is_js_type(value)  \
-    (v3_is_base_type(value)  \
+    (v3_is_primitive_type(value)  \
         || value->type == V3_DATA_TYPE_OBJECT \
         || value->type == V3_DATA_TYPE_FUNCTION)
 
@@ -42,10 +42,10 @@ struct v3_base_object_s {
 #include <v3_undefined.h>
 #include <v3_null.h>
 #include <v3_bool.h>
+#include <v3_string_object.h>
 #include <v3_object.h>
 #include <v3_function_object.h>
 #include <v3_number_object.h>
-#include <v3_string_object.h>
 #include <v3_reference.h>
 #include <v3_vector.h>
 

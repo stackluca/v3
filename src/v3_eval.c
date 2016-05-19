@@ -16,8 +16,6 @@ static char *to_cstr(char *buf, const char *value, size_t len);
 static v3_object_t *
 v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values);
 static v3_base_object_t *
-v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values);
-static v3_base_object_t *
 v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *this, v3_vector_t *arg_values);
 static v3_vector_t *v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params);
 static v3_object_t *v3_arguments_object_create(v3_ctx_t *ctx, v3_vector_t *arg_values);
@@ -31,20 +29,20 @@ v3_base_object_t *v3_operator_addition(v3_ctx_t *ctx, v3_node_t *left, v3_node_t
 // typedef void (*v3_disp_result_pt)(v3_ctx_t *ctx, v3_base_object_t *value);
 
 v3_eval_pt v3_evaleators[] = {
-    NULL, // V3_SYNTAX_ASSIGNMENT_EXPR,
+    v3_assignment_expr_eval, // V3_SYNTAX_ASSIGNMENT_EXPR,
     v3_call_expr_eval, // V3_SYNTAX_CALL_EXPR,
     v3_identifier_eval,//V3_SYNTAX_IDENTIFIER,
     v3_literal_eval,//V3_SYNTAX_LITERAL,
-    NULL,//V3_SYNTAX_MEMBER_EXPR,
+    v3_member_expr_eval,//V3_SYNTAX_MEMBER_EXPR,
     v3_program_eval,//V3_SYNTAX_PROGRAM,
-    NULL,//V3_SYNTAX_SEQUENCE_EXPR,
+    v3_sequence_expr_eval,//V3_SYNTAX_SEQUENCE_EXPR,
     v3_variable_statement_eval, // V3_SYNTAX_VARIABLE_DECLARATION,
     v3_variable_declarator_eval,// V3_SYNTAX_VARIABLE_DECLARATOR,
     v3_expr_statement_eval,     // V3_SYNTAX_EXPR_STATEMENT = 9,   // 
     v3_new_expr_eval,     // V3_SYNTAX_NEW_EXPR = 10,   // 
     v3_block_statement_eval,
     v3_function_declaration_eval, 
-    NULL, // function expression
+    v3_function_expr_eval, 
     v3_return_statement_eval, 
     v3_binary_expr_eval, 
 };
@@ -101,10 +99,9 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
     v3_int_t            rc;
     v3_program_node_t   *program;
     size_t              len, i;
-    v3_base_object_t        *ret, *owner;
-    v3_string_object_t      *str;
+    v3_base_object_t        *ret;
     char                    buf[1024];
-    v3_function_object_t    *func;
+    v3_string_object_t      *str;
 
     len = strlen(code);
     rc = v3_parse(ctx, code, len, &program);
@@ -144,17 +141,11 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
                 printf("%s\n", buf);
             }
         } else {
-            owner = ret;
-            ret = v3_find_property(ret, v3_strobj("toString"));
-            if (ret->type == V3_DATA_TYPE_FUNCTION) {
-                func = (v3_function_object_t *)ret;
-                ret = v3_function_call(ctx, func, owner, NULL);
-                if (ret->type == V3_DATA_TYPE_STRING) {
-                    str = (v3_string_object_t *)ret;
-                    memcpy(buf, str->value.data, str->value.length);
-                    buf[str->value.length] = '\0';
-                    printf("%s\n", buf);
-                }
+            str = v3_to_string(ctx, ret);
+            if (str == NULL) {
+                v3_show_err(ctx, 0);
+            } else {
+                printf("%s\n", to_string(ret)->value.data);
             }
         }
     } else {
@@ -204,6 +195,59 @@ v3_program_eval(v3_ctx_t *ctx, v3_node_t *anode)
 }
 
 v3_base_object_t *
+v3_assignment_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+    assert("not support assignment expr" == NULL);
+    return NULL;
+}
+
+v3_base_object_t *
+v3_sequence_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+    assert("not support sequence expr" == NULL);
+    return NULL;
+}
+
+v3_base_object_t *
+v3_member_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+    v3_member_expr_t        *expr;
+    v3_base_object_t        *ret, *object, *property;
+    v3_object_t             *scope;
+    v3_string_object_t      *name;
+    v3_idetifier_t          *id;
+
+    assert(node->type == V3_SYNTAX_MEMBER_EXPR);
+    expr = (v3_member_expr_t *)node;
+
+    ret = V3_EVAL_NODE(expr->object);
+    if (ret == NULL) return NULL;
+
+    object = v3_get_value(ctx, ret);
+    if (object == NULL) return NULL;
+
+    if (expr->computed) {
+        ret = V3_EVAL_NODE(expr->property);
+        if (ret == NULL) return NULL;
+
+        property = v3_get_value(ctx, ret);
+        if (property == NULL) return NULL;
+
+        name = v3_to_string(ctx, property);
+        if (name == NULL) return NULL;
+
+    } else {
+        id = (v3_idetifier_t *)expr->property;
+        name = v3_str2string(&id->name);
+    }
+
+    scope = v3_to_object(ctx, object);
+    if (scope == NULL) return NULL;
+
+    return to_base(v3_ref_create(ctx, name, to_base(scope)));
+}
+
+v3_base_object_t *
 v3_new_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
     v3_new_expr_t           *expr;
@@ -217,9 +261,11 @@ v3_new_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     assert(expr->callee != NULL);
 
     ret = v3_evaleators[expr->callee->type](ctx, expr->callee);
+    if (ret == NULL) return NULL;
 
     ret = v3_ref_get_value(ctx, ret);
     if (ret == NULL) return NULL;
+
     if (ret->type != V3_DATA_TYPE_FUNCTION) {
         v3_set_error(ctx, v3_SyntaxError, "new exprssion need a function");
         return NULL;
@@ -227,6 +273,7 @@ v3_new_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     func_obj = (v3_function_object_t *)ret;
 
     arg_values = v3_arguments_eval(ctx, expr->arguments);
+    if (arg_values == NULL) return NULL;
 
     return v3_function_construct(ctx, func_obj, arg_values);
 }
@@ -278,19 +325,18 @@ v3_function_declaration_eval(v3_ctx_t *ctx, v3_node_t *node)
 v3_base_object_t * 
 v3_function_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
-#if 0
     v3_function_node_t          *func_node;
     v3_function_object_t        *func_obj;
     func_node = (v3_function_node_t *)node;
 
+    if (func_node->id != NULL) { 
+        // TODO: add identifier to scope 
+    }
+
     func_obj = v3_function_from_node(ctx, func_node, ctx->frame->scopes);
     if (func_obj == NULL) return NULL;
 
-    ctx->ret.name = func_node->id->name;
-    ctx->ret.value = (v3_base_object_t *)func_obj;
-#endif
-
-    return (v3_base_object_t *)&v3_null;
+    return to_base(func_obj);
 }
 
 v3_base_object_t * 
@@ -388,6 +434,7 @@ v3_arguments_eval(v3_ctx_t *ctx, v3_vector_t *params)
         node = params->items;
         for (i = 0; i< params->length; i++) {
             ret = V3_EVAL_NODE(node[i]);
+            if (ret == NULL) return NULL;
             item = v3_vector_push(ctx->options, arguments);
             ret = v3_ref_get_value(ctx, ret);
             *item = ret;
@@ -411,6 +458,7 @@ v3_call_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
     call_expr = (v3_call_expr_t *)node;
     // TODO: get this
     member = (V3_EVAL_NODE(call_expr->callee)); // result 1
+    if (member == NULL) return NULL;
 
     ret = v3_get_value(ctx, member);
     if (ret == NULL) return NULL;
@@ -464,6 +512,7 @@ v3_return_statement_eval(v3_ctx_t *ctx, v3_node_t *node)
     assert(is_expr(return_stmt->argument));
 
     ret = v3_evaleators[return_stmt->argument->type](ctx, return_stmt->argument);
+    if (ret == NULL) return NULL;
     result->value = v3_get_value(ctx, ret);
 
     return to_base(result);
@@ -523,19 +572,20 @@ v3_function_call(v3_ctx_t *ctx, v3_function_object_t *func, v3_base_object_t *th
     v3_base_object_t            *ret;
     v3_statement_result_t       *result;
 
+    activation = v3_function_build_activation(ctx, func, arg_values);
+
     if (func->is_native) {
         ctx->frame->this = this;
+        ctx->frame->call_obj = activation;
         ret = func->native_func(ctx);
         return ret;
     } else {
         frame.this = this;
-        activation = v3_function_build_activation(ctx, func, arg_values);
+        frame.call_obj = activation;
         // frame.call_obj = v3_object_clone(func_obj->call_obj);
         // TODO: create argument objct by arguments
-        // v3_object_set(frame.call_obj, v3_str2string("arguments"), arg_obj);
         v3_list_prepend(func->scopes, activation);
         frame.scopes = func->scopes;
-        frame.call_obj = activation;
 
         v3_frame_push(ctx, &frame);
         result  = (v3_statement_result_t *)v3_block_statement_eval(ctx, (v3_node_t *)func->node->body);
@@ -579,6 +629,9 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vecto
     // set argumetns
     arg_obj = v3_arguments_object_create(ctx, arg_values);
     v3_object_set(activation, v3_strobj("arguments"), (v3_base_object_t *)arg_obj); 
+    if (func->is_native) {
+        return activation;
+    }
 
     // parameters;
     values = arg_values->items;
@@ -622,7 +675,7 @@ v3_function_build_activation(v3_ctx_t *ctx, v3_function_object_t *func, v3_vecto
     return activation;
 }
 
-static v3_base_object_t *
+v3_base_object_t *
 v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values)
 {
     v3_object_t     *obj;
@@ -651,7 +704,20 @@ static v3_object_t *v3_arguments_object_create(v3_ctx_t *ctx, v3_vector_t *arg_v
 {
     // TODO:
     v3_object_t     *arguments;
+    v3_int_t        i;
+    v3_base_object_t **arg;
+    
     arguments = v3_object_create(ctx, 5);
+    
+    v3_object_set(arguments, v3_strobj("length"), to_base(v3_numobj(arg_values->length)));
+    
+    if (arg_values != NULL) {
+        arg = arg_values->items;
+        for (i = 0; i < arg_values->length; i++) {
+            v3_object_set(arguments, v3_to_string(ctx, to_base(v3_numobj(i))), *arg);
+        }
+    }
+    
     return arguments;
 }
 

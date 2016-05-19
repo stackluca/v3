@@ -33,6 +33,7 @@ v3_object_get_by_str(v3_object_t* obj, const char *key, size_t len);
 v3_int_t 
 v3_object_set_by_str(v3_object_t* obj, const char *key, size_t len, v3_base_object_t *value);
 v3_base_object_t *v3_find_property(v3_base_object_t *owner, v3_string_object_t *key);
+v3_bool_t v3_class_is(v3_ctx_t *ctx, v3_object_t *object, v3_string_object_t *classname);
 
 #define V3_OBJ_GET(obj, _str) v3_object_get_by_str(obj, _str, sizeof(_str)-1)
 #define v3_obj_set(obj, key, value) \

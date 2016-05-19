@@ -92,3 +92,17 @@ v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
         return ret;
     }
 }
+
+v3_bool_t v3_class_is(v3_ctx_t *ctx, v3_object_t *object, v3_string_object_t *other)
+{
+    v3_string_object_t  *class;
+
+    class = to_string(v3_object_get(object, v3_strobj(INTER_CLASS)));
+    if (class == NULL) return V3_FALSE;
+    
+    if (v3_strobj_equal(class, other)) {
+        return V3_TRUE;
+    }
+
+    return V3_FALSE;
+}

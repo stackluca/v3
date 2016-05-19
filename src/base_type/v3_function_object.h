@@ -9,7 +9,7 @@ typedef struct {
 } v3_arguments_t;
 
 #define v3_function_set_prototype(ctx, function, prototype) \
-    v3_obj_set(function, v3_strobj(INTER_PROTOTYPE), prototype); \
+    v3_obj_set(function, v3_strobj("prototype"), prototype); \
     v3_obj_set(prototype, v3_strobj("constructor"), function);
 
 #define v3_obj_set_native_func(ctx, obj, func_name, arg_count) \
@@ -32,6 +32,7 @@ struct v3_function_object_s {
 #define to_func(value) ((v3_function_object_t *)(value))
 
 extern v3_object_t             *Function_prototype;
+extern v3_function_object_t            *v3_Number;
 
 v3_function_object_t *
 v3_function_create_native(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *arg_count, v3_func_pt pt);

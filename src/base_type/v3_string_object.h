@@ -7,9 +7,11 @@ struct v3_string_object_s {
     v3_str_t            value;
 };
 
+#define to_string(value) ((v3_string_object_t *)(value))
 // extern v3_object_t  *String_prototype;
 
 v3_string_object_t *v3_string_create(v3_ctx_t *ctx, const char *value, size_t len);
+v3_bool_t v3_strobj_equal(v3_string_object_t *str1, v3_string_object_t *str2);
 
 static inline void v3_string_init(v3_ctx_t *ctx, v3_string_object_t *str)
 {

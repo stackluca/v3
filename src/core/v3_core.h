@@ -191,8 +191,9 @@ typedef struct {
 
 typedef struct {
     v3_node_t   node;
-    int         computed; /* when acceor == [ */
+    int         computed; /* when accesor == [ */
     char        accessor; /* [ or . */
+    /** the last node, eg: object.property */
     v3_node_t   *property;
     v3_node_t   *object;
 } v3_member_expr_t;

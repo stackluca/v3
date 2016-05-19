@@ -16,8 +16,8 @@ base_type/v3_undefined.h \
 base_type/v3_bool.h \
 base_type/v3_function_object.h \
 base_type/v3_number_object.h \
-base_type/v3_object.h \
 base_type/v3_string_object.h \
+base_type/v3_object.h \
 base_type/v3_reference.h \
 base_type/v3_conversion.h \
 core/v3_core.h \

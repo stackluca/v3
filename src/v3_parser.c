@@ -47,8 +47,10 @@ static v3_int_t parse_array_init(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_assignment_expr(v3_ctx_t *ctx, v3_node_t **node);
 static v3_int_t parse_binary_expr(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_conditional_expr(v3_ctx_t *ctx, v3_node_t **expr);
+static v3_int_t parse_computed_member(v3_ctx_t *ctx, v3_node_t **node);
 static v3_int_t parse_expression(v3_ctx_t *ctx, v3_node_t **node);
 static v3_int_t parse_function_declaration(v3_ctx_t *ctx, v3_node_t **node);
+static v3_int_t parse_function_expr(v3_ctx_t *ctx, v3_node_t **node);
 static v3_int_t parse_function_source_elements(v3_ctx_t *ctx, v3_block_statement_t **block);
 static v3_int_t parse_group_expr(v3_ctx_t *ctx, v3_node_t **expr);
 static v3_int_t parse_left_hand_side_expr_allow_call(v3_ctx_t *ctx, v3_node_t **expr);
@@ -287,6 +289,34 @@ parse_return_statement(v3_ctx_t *ctx, v3_node_t **node)
 }
 
 static v3_int_t
+parse_function_expr(v3_ctx_t *ctx, v3_node_t **node)
+{
+    v3_idetifier_t          *id;
+    v3_vector_t             *params;
+    v3_block_statement_t    *block;
+    // v3_token_t              *token;
+
+    CHECK_FCT(expect_keyword(ctx, V3_KEYWORD_FUNCTION));
+
+    id = NULL;
+    if (!match("(")) {
+        // token = c_lookahead;
+        CHECK_FCT(parse_variable_identifier(ctx, &id));
+    }
+
+    // TODO:
+    CHECK_FCT(parse_params(ctx, &params));
+
+    CHECK_FCT(parse_function_source_elements(ctx, &block));
+
+    *node = (v3_node_t *)v3_create_function_node(ctx, 
+                            id, params, block, 
+                            V3_SYNTAX_FUNCTION_EXPR);
+
+    return *node == NULL ? V3_ERROR : V3_OK;
+}
+
+static v3_int_t
 parse_function_declaration(v3_ctx_t *ctx, v3_node_t **node)
 {
     v3_idetifier_t          *id;
@@ -303,7 +333,10 @@ parse_function_declaration(v3_ctx_t *ctx, v3_node_t **node)
     CHECK_FCT(parse_function_source_elements(ctx, &block));
 
     // TODO:
-    *node = (v3_node_t *)v3_create_function_node(ctx, id, params, block, V3_SYNTAX_FUNCTION_DECLARATION);
+    // TODO:
+    *node = (v3_node_t *)v3_create_function_node(ctx, 
+                        id, params, block, 
+                        V3_SYNTAX_FUNCTION_DECLARATION);
 
     return *node == NULL ? V3_ERROR : V3_OK;
 }
@@ -408,7 +441,12 @@ parse_expression(v3_ctx_t *ctx, v3_node_t **node)
     v3_int_t    rc;
     rc = parse_assignment_expr(ctx, node);
 
-    // TODO:
+    if (match(",")) {
+        // a=1, b=2 
+        ctx->err = "unsupported sequence expression yet";
+        return V3_UNEXPEDTED_TOKEN;
+        // TODO:
+    }
 
     return rc;
 }
@@ -754,17 +792,21 @@ parse_left_hand_side_expr_allow_call(v3_ctx_t *ctx, v3_node_t **expr)
     for (;;) {
         if (match(".")) {
             // eg: a.foo
-            rc = parse_non_computed_member(ctx, &property);
-            if (rc != V3_OK) return rc;
+            CHECK_FCT(parse_non_computed_member(ctx, &property));
             
             *expr = (v3_node_t *)v3_create_member_expr(ctx, '.', *expr, property);
             if (*expr == NULL) return V3_ERROR;
         } else if(match("(")) {
             // eg: a.foo(), a()
-            rc = parse_arguments(ctx, &args); 
-            if (rc != V3_OK) return rc;
+            CHECK_FCT(parse_arguments(ctx, &args)); 
             *expr = (v3_node_t *)v3_create_call_expr(ctx, *expr, args);
             if (*expr == NULL) return V3_ERROR;
+        } else if (match("[")) {
+            CHECK_FCT(parse_computed_member(ctx, &property));
+            
+            *expr = (v3_node_t *)v3_create_member_expr(ctx, '[', *expr, property);
+            if (*expr == NULL) return V3_ERROR;
+        
         } else {
             break;
         }
@@ -919,6 +961,18 @@ v3_create_member_expr(v3_ctx_t *ctx, char accessor, v3_node_t *expr, v3_node_t *
     return mem_expr;
 }
 
+static v3_int_t
+parse_computed_member(v3_ctx_t *ctx, v3_node_t **node)
+{
+    CHECK_FCT(expect(ctx, "[", 1));
+
+    CHECK_FCT(parse_expression(ctx, node));
+
+    CHECK_FCT(expect(ctx, "]", 1));
+
+    return V3_OK;
+}
+
 // parse .foo
 static v3_int_t
 parse_non_computed_member(v3_ctx_t *ctx, v3_node_t **node)
@@ -1009,16 +1063,36 @@ parse_new_expr(v3_ctx_t *ctx, v3_node_t **expr)
 }
 
 static v3_int_t 
-parse_left_hand_side_expr(v3_ctx_t *ctx, v3_node_t **callee)
+parse_left_hand_side_expr(v3_ctx_t *ctx, v3_node_t **expr)
 {
-    v3_int_t        /*prev_allow_in,*/ rc;
+    v3_int_t        prev_allow_in, rc;
+    v3_node_t       *property;
 
-    // prev_allow_in = ctx->state.allowin;
+    prev_allow_in = ctx->state.allowin;
     rc = match_keyword(c_lookahead, V3_KEYWORD_NEW)
-        ? parse_new_expr(ctx, callee)
-        : parse_primary_expr(ctx, callee);
+        ? parse_new_expr(ctx, expr)
+        : parse_primary_expr(ctx, expr);
+    ctx->state.allowin = prev_allow_in;
 
     // TODO:
+    for (;;) {
+        if (match(".")) {
+            // eg: a.foo
+            CHECK_FCT(parse_non_computed_member(ctx, &property));
+            
+            *expr = (v3_node_t *)v3_create_member_expr(ctx, '.', *expr, property);
+            if (*expr == NULL) return V3_ERROR;
+        } else if (match("[")) {
+            // eg: a["foo"]["bar"]
+            CHECK_FCT(parse_computed_member(ctx, &property));
+            
+            *expr = (v3_node_t *)v3_create_member_expr(ctx, '[', *expr, property);
+            if (*expr == NULL) return V3_ERROR;
+        
+        } else {
+            break;
+        }
+    }
 
     return rc;
 }
@@ -1097,6 +1171,10 @@ parse_primary_expr(v3_ctx_t *ctx, v3_node_t **expr)
         if (expr == NULL) return V3_ALLOC_ERROR;
 
         return V3_OK;
+    } else if (type == V3_TOKEN_Keyword) {
+        if (match_keyword(c_lookahead, V3_KEYWORD_FUNCTION)) {
+            return parse_function_expr(ctx, expr);
+        }
     }
 
     // TODO:
