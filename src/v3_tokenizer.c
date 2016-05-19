@@ -592,8 +592,16 @@ static v3_token_t *v3_token_create(v3_tokenizer_t *tokenizer, int start, v3_toke
     token->start      = start;
     token->end        = tokenizer->index;  
     token->type       = type;
-    token->value.data = tokenizer->source.data + start;
+#if 0
+    token->value.data = token->
     token->value.length = token->end - token->start;
+#endif
+
+
+    token->value.length = token->end - token->start;
+    token->value.data = v3_alloc(tokenizer->options, token->value.length + 1);
+    memcpy((char *)token->value.data, tokenizer->source.data+start, token->value.length);
+    ((char *)token->value.data)[token->value.length] = '\0';
 
     return token;
 }

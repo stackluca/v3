@@ -17,6 +17,7 @@ int main(int argc, char ** argv)
     FILE        *stream;
     char        buf[4096];
     v3_ctx_t    ctx;
+    size_t      len;
 
     stream = stdin;
     show_version_info();
@@ -48,7 +49,11 @@ int main(int argc, char ** argv)
     printf(PROMPT);
     while (fgets(buf, sizeof(buf), stream) != NULL) {
         // execute
-        v3_eval(&ctx, buf);
+        len = strlen(buf);
+        if (len == 1 && buf[0] == '\n') {
+        } else {
+            v3_eval(&ctx, buf);
+        }
         // show result or err
         // read input
         printf(PROMPT);

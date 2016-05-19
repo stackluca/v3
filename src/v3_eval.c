@@ -83,7 +83,7 @@ void v3_show_err(v3_ctx_t *ctx, v3_int_t err_code)
 {
     char                    buf[1024];
     if (err_code != 0) {
-        printf(" error_code:%d", err_code);
+        printf(" error_code:%d(%s)", err_code, v3_str_error(err_code));
     }
 
     if (ctx->err != NULL) {
