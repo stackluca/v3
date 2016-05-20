@@ -700,9 +700,12 @@ binary_precedence(v3_ctx_t *ctx, v3_token_t *token, v3_bool_t allowin)
     if (token_match(token, "+")
         || token_match(token, "-")) {
         prec = 9;
+    } else if (token_match(token, "*")
+            || token_match(token, "/")
+            || token_match(token, "%")) {
+        prec = 11;
     } else {
-        // ctx->err = "not support precedence";
-        // return V3_NOT_SUPPORT;
+        //RETURN_ERROR(V3_NOT_SUPPORT);
     }
 
     // may be ,

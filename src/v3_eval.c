@@ -25,6 +25,8 @@ extern v3_int_t v3_init_Function(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Object(v3_ctx_t *ctx);
 extern v3_int_t v3_init_Number(v3_ctx_t *ctx);
 v3_base_object_t *v3_operator_addition(v3_ctx_t *ctx, v3_node_t *left, v3_node_t *right);
+v3_base_object_t *
+v3_operator_multi(v3_ctx_t *ctx, v3_node_t *left, v3_node_t *right);
 
 // typedef void (*v3_disp_result_pt)(v3_ctx_t *ctx, v3_base_object_t *value);
 
@@ -786,6 +788,8 @@ v3_binary_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 
     if (v3_str_equal(&expr->_operator, "+")) {
         return v3_operator_addition(ctx, expr->left, expr->right);         
+    } else if (v3_str_equal(&expr->_operator, "*")) {
+        return v3_operator_multi(ctx, expr->left, expr->right);         
     } else {
         v3_set_error(ctx, v3_SyntaxError, "not support operator");
         return NULL;
@@ -795,6 +799,47 @@ v3_binary_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 #define CHECK_FCNULL(__call__, __left__)\
     __left__ = __call__; \
     if (__left__ == NULL) return NULL;
+
+v3_base_object_t *
+v3_operator_multi(v3_ctx_t *ctx, v3_node_t *left, v3_node_t *right)
+{
+    v3_base_object_t    *ret, *left_result, *right_result;
+    v3_number_object_t  *left_number, *right_number;
+
+    assert(is_expr(left) && is_expr(right));
+    
+    // get left value;
+    ret = V3_EVAL_NODE(left);
+    if (ret == NULL) return NULL;
+
+    left_result = v3_get_value(ctx, ret);
+    if (left_result == NULL) return NULL;
+
+    left_result = v3_to_primitive(ctx, left_result);
+    if (left_result == NULL) return NULL;
+
+
+    ret = V3_EVAL_NODE(right);  
+    if (ret == NULL) return NULL;
+
+    right_result = v3_get_value(ctx, ret);
+    if (right_result == NULL) return NULL;
+
+    right_result = v3_to_primitive(ctx, right_result);
+    if (right_result == NULL) return NULL;
+
+
+    if (left_result->type == V3_DATA_TYPE_STRING
+        || right_result->type == V3_DATA_TYPE_STRING) {
+        v3_set_error(ctx, v3_SyntaxError, "not support string multi");
+        return NULL;
+    }
+
+    left_number = v3_to_number(ctx, left_result);    
+    right_number = v3_to_number(ctx, right_result);    
+    
+    return to_base(v3_numobj(left_number->value * right_number->value));
+}
 
 v3_base_object_t *
 v3_operator_addition(v3_ctx_t *ctx, v3_node_t *left, v3_node_t *right)
