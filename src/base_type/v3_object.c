@@ -70,6 +70,9 @@ v3_find_property(v3_base_object_t *owner, v3_string_object_t *key)
 {
     v3_object_t         *prototype, *object;
     v3_base_object_t    *ret;
+
+    if (owner == NULL) return to_base(&v3_undefined);
+
     if (owner->type == V3_DATA_TYPE_OBJECT
         || owner->type == V3_DATA_TYPE_FUNCTION) {
         object = (v3_object_t *)owner;

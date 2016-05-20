@@ -27,4 +27,5 @@ v3_base_object_t *v3_assignment_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_base_object_t *v3_sequence_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_base_object_t *v3_member_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 v3_base_object_t *v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values);
+v3_base_object_t *v3_this_expr_eval(v3_ctx_t *ctx, v3_node_t *node);
 #endif

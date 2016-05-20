@@ -4,12 +4,12 @@
 #include "v3_exception.h"
 #include <assert.h>
 
-
 #define V3_SET_RETURN(_name, _value) \
     ctx->ret.name = (_name); \
     ctx->ret.value = (v3_base_object_t *)(_value)
 // static v3_object_t v3_global;
 #define v3_get_value v3_ref_get_value
+#define v3_put_value v3_ref_put_value
 #define to_result(value) ((v3_statement_result_t *)(value))
 
 static char *to_cstr(char *buf, const char *value, size_t len);
@@ -45,6 +45,7 @@ v3_eval_pt v3_evaleators[] = {
     v3_function_expr_eval, 
     v3_return_statement_eval, 
     v3_binary_expr_eval, 
+    v3_this_expr_eval, 
 };
 
     //{assert(((v3_node_t *)(node))->type < sizeof(v3_evaleators) / sizeof(v3_evaleators[0])); 
@@ -145,7 +146,7 @@ v3_int_t v3_eval(v3_ctx_t *ctx, char *code)
             if (str == NULL) {
                 v3_show_err(ctx, 0);
             } else {
-                printf("%s\n", to_string(ret)->value.data);
+                printf("%s\n", to_string(str)->value.data);
             }
         }
     } else {
@@ -197,8 +198,25 @@ v3_program_eval(v3_ctx_t *ctx, v3_node_t *anode)
 v3_base_object_t *
 v3_assignment_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
 {
-    assert("not support assignment expr" == NULL);
-    return NULL;
+    v3_base_object_t        *ret, *left_ret, *right_ret, *value;
+    v3_assignment_expr_t    *assign_expr;
+
+    assert(node->type == V3_SYNTAX_ASSIGNMENT_EXPR);
+
+    assign_expr = (v3_assignment_expr_t *)node;
+    left_ret = V3_EVAL_NODE(assign_expr->left);
+    if (left_ret == NULL) return NULL;
+
+    right_ret = V3_EVAL_NODE(assign_expr->right);
+    if (right_ret == NULL) return NULL;
+
+    value = v3_get_value(ctx, right_ret);
+    if (value == NULL) return NULL;
+
+    ret = v3_put_value(ctx, left_ret, value);
+    if (ret == NULL) return NULL;
+
+    return value;
 }
 
 v3_base_object_t *
@@ -679,18 +697,16 @@ v3_base_object_t *
 v3_function_construct(v3_ctx_t *ctx, v3_function_object_t *func, v3_vector_t *arg_values)
 {
     v3_object_t     *obj;
-    // v3_object_t     *prototype;
     v3_base_object_t    *ret;
     
     obj = v3_object_create(ctx, 20);
     v3_object_set(obj, v3_strobj(INTER_CLASS), (v3_base_object_t *)v3_strobj("Object"));
-    #if 0
-    prototype = (v3_object_t *)V3_OBJ_GET(obj, "prototype");
 
-    if (prototype != NULL) {
-        obj->base.__proto__ = prototype;
-    } 
-    #endif
+    ret = v3_object_get(to_obj(func), v3_strobj("prototype"));
+
+    if (ret->type == V3_DATA_TYPE_OBJECT) {
+        obj->base.__proto__ = to_obj(ret);
+    }
 
     ret = v3_function_call(ctx, func, (v3_base_object_t *)obj, arg_values);
     if (ret->type == V3_DATA_TYPE_OBJECT) {
@@ -752,6 +768,12 @@ v3_statement_result_t *v3_statement_result_create(v3_ctx_t *ctx, int type, v3_ba
     result->value = value;
     result->label = label;
     return result;
+}
+
+v3_base_object_t *
+v3_this_expr_eval(v3_ctx_t *ctx, v3_node_t *node)
+{
+    return ctx->frame->this;
 }
 
 v3_base_object_t *

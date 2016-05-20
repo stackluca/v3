@@ -24,6 +24,10 @@ extern v3_int_t parse_program(v3_ctx_t *ctx, v3_program_node_t **node);
 #include <stdio.h>
 #include <string.h>
 
+#define RETURN_ERROR(errcode) \
+    printf("line: %d\n", __LINE__); \
+    return errcode; 
+
 #define CHECK_FCT2(__call__, __return__) { \
     v3_int_t    __rc__; \
     __rc__ = __call__; \
@@ -73,6 +77,7 @@ typedef enum {
     V3_SYNTAX_FUNCTION_EXPR = 13, // functin expr, eg: var foo = function(){}
     V3_SYNTAX_RETURN_STATEMENT = 14, 
     V3_SYNTAX_BINARY_EXPR = 15, // a()
+    V3_SYNTAX_THIS_EXPR = 16,
 } v3_syntax_t;
 
 /** the node is exprssion */
@@ -86,7 +91,7 @@ typedef enum {
     || (node)->type == V3_SYNTAX_NEW_EXPR \
     || (node)->type == V3_SYNTAX_FUNCTION_EXPR \
     || (node)->type == V3_SYNTAX_BINARY_EXPR\
-    || (node)->type == V3_SYNTAX_CALL_EXPR \
+    || (node)->type == V3_SYNTAX_THIS_EXPR \
     || (node)->type == V3_SYNTAX_CALL_EXPR)
 
 typedef enum {
@@ -138,6 +143,8 @@ typedef struct {
     int     type;
 } v3_node_t;
 
+typedef v3_node_t v3_this_expr_t;
+
 struct v3_program_node_s {
     v3_node_t   node;
     v3_vector_t *body; 
@@ -150,6 +157,12 @@ typedef struct {
     v3_vector_t *declarations; 
 } v3_variable_statement_t;
 
+typedef struct {
+    v3_node_t   node;
+    v3_str_t    _operator;
+    v3_node_t   *left;
+    v3_node_t   *right;
+} v3_assignment_expr_t;
 
 typedef struct {
     v3_node_t   node;

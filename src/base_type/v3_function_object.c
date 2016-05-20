@@ -18,6 +18,8 @@ v3_function_create(v3_ctx_t *ctx, v3_string_object_t *name, v3_number_object_t *
     afunc->base.base.type = V3_DATA_TYPE_FUNCTION;
     afunc->base.base.__proto__ = Function_prototype;
 
+    v3_object_set(to_obj(afunc), v3_strobj(INTER_CLASS), to_base(v3_strobj("Function")));
+
     afunc->name = name;
     afunc->length = arg_count;
 
@@ -43,6 +45,7 @@ v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *func_node, v3_list_t *s
     v3_string_object_t      *strobj;
     size_t                  arg_count;
     v3_int_t                rc;
+    v3_object_t             *prototype;
 
     if (func_node->id != NULL) {
         strobj = v3_str2string(&func_node->id->name);
@@ -51,9 +54,13 @@ v3_function_from_node(v3_ctx_t *ctx, v3_function_node_t *func_node, v3_list_t *s
     }
 
     arg_count = func_node->params == NULL ? 0 : func_node->params->length;
+    prototype = v3_object_create(ctx, 10);
 
     func_obj = v3_function_create(ctx, strobj, v3_numobj(arg_count));
     if (func_obj == NULL) return NULL;
+
+    v3_object_set(to_obj(func_obj), v3_strobj("constructor"), to_base(func_obj));
+    v3_object_set(to_obj(func_obj), v3_strobj("prototype"), to_base(prototype));
 
     func_obj->node = func_node;
 
